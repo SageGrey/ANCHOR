@@ -334,6 +334,16 @@ td:first-child { text-align:left; font-weight:500; }
   <div class="ctrl-row">
     <input type="text" id="sSearch" placeholder="Search site name, agency…" oninput="renderSites()">
     <select id="sState" onchange="renderSites()"><option value="">All states</option></select>
+    <select id="sLC" onchange="renderSites()">
+      <option value="">All landscape types</option>
+      <option value="NatGrass">Native Grassland</option>
+      <option value="PollHabMilkweed">Pollinator Habitat: Milkweed</option>
+      <option value="PollHabNectPlants">Pollinator Habitat: Nectar Plants</option>
+      <option value="NatLongSav">Native Longleaf Savanna</option>
+      <option value="MixedPineSav">Mixed Pine Savanna</option>
+      <option value="GrazLandswCP">Grazing Lands w/ Conservation</option>
+      <option value="CroplandwCP">Cropland w/ Conservation</option>
+    </select>
     <span class="rcount" id="sCount"></span>
   </div>
   <div class="tiles-grid" id="tilesGrid">
@@ -758,8 +768,10 @@ function renderContacts() {
 function renderSites() {
   const q  = (document.getElementById("sSearch").value||"").toLowerCase();
   const st = document.getElementById("sState").value;
+  const lc = document.getElementById("sLC").value;
   const sites = ALL_ATTRS.map((a,i)=>({a,i})).filter(({a}) => {
     if (st && (a.what_state_is_the_anchor_in||"")!==st) return false;
+    if (lc && !((Number(a[lc+"_EstAcres"])||0)>0)) return false;
     if (q) { const b=[a.ANCHOR_SiteName,a.AgencyOrPartner_ManagingPartner,a.AgencyOrPartner_FillingForm,a.what_state_is_the_anchor_in,a.what_countycounties_is_the_anch].join(" ").toLowerCase(); if(!b.includes(q)) return false; }
     return true;
   });
