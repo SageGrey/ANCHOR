@@ -1,0 +1,89 @@
+:root {
+    --font-sans: "Montserrat", system-ui, sans-serif;
+
+    /* TYPOGRAPHY */
+    /* Weight size/line-height family + commented px equivalent */
+    --header-1: 800 3rem/3.125rem var(--font-sans); /* 48/50 */
+    --header-2: 700 2.25rem/2.5rem var(--font-sans); /* 36/40 */
+    --header-3: 700 1.875rem/2.25rem var(--font-sans); /* 30/36 */
+    --header-4: 700 1.5rem/2rem var(--font-sans); /* 24/32 */
+    --header-5: 500 1.25rem/1.75rem var(--font-sans); /* 20/28 */
+    --header-6: 500 1.125rem/1.5rem var(--font-sans); /* 18/24 */
+    --body: 400 1rem/1.5rem var(--font-sans); /* 16/24 */
+    --utility: 500 0.875rem/1.25rem var(--font-sans); /* 14/20 */
+    --caption: 400 0.75rem/1rem var(--font-sans); /* 12/16 */
+
+    /* COLORS */
+    /* Brand colors */
+    --brand-beige: #f0debb;
+    --brand-navy: #27426a;
+    --brand-dark-green: #84984c;
+    --brand-light-green: #dfdf9e;
+    --brand-black: #000000;
+
+    /* System colors with ramps */
+    /* Brown */
+    --brown-900: #6a3f24;
+    --brown-800: #824b2a;
+    --brown-700: #a25d2c;
+    --brown-600: #c47632;
+    --brown-500: #d28d3d;
+    --brown-400: #daa55d;
+    --brown-300: #e5c58c;
+    --brown-200: #f0debb;
+    --brown-100: #f8efdc;
+    --brown-50: #fcf8f0;
+
+    /* Blue */
+    --blue-900: #27426a;
+    --blue-800: #325a9b;
+    --blue-700: #376ebe;
+    --blue-600: #4182cf;
+    --blue-500: #559cdc;
+    --blue-400: #76b7e4;
+    --blue-300: #a2d1ee;
+    --blue-200: #c8e2f5;
+    --blue-100: #e0eef9;
+    --blue-50: #f1f8fd;
+
+    /* Green */
+    --green-900: #384126;
+    --green-800: #414b29;
+    --green-700: #4f5c2f;
+    --green-600: #667739;
+    --green-500: #84984c;
+    --green-400: #a0b269;
+    --green-300: #bac88e;
+    --green-200: #d6deb8;
+    --green-100: #eaeed9;
+    --green-50: #f5f7ee;
+
+    /* Orange */
+    --orange-900: #7c2d12;
+    --orange-800: #9a3412;
+    --orange-700: #c2410c;
+    --orange-600: #ea580c;
+    --orange-500: #f97316;
+    --orange-400: #fb923c;
+    --orange-300: #fdba74;
+    --orange-200: #fed7aa;
+    --orange-100: #ffedd5;
+    --orange-50: #fff7ed;
+
+    /* Grey */
+    --grey-900: #171717;
+    --grey-800: #262626;
+    --grey-700: #404040;
+    --grey-600: #525252;
+    --grey-500: #737373;
+    --grey-400: #a3a3a3;
+    --grey-300: #d4d4d4;
+    --grey-200: #e5e5e5;
+    --grey-100: #f5f5f5;
+    --grey-50: #fafafa;
+
+    /* Utility colors */
+    --utility-red: #e52207;
+    --utility-yellow: #ffbe2e;
+    --utility-green: #16a34a;
+}

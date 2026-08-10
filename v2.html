@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>ANCHOR Dashboard</title>
+
+        <!-- Google Fonts -->
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;800&display=swap"
+            rel="stylesheet"
+        >
+        <!-- Stylesheets -->
+        <link rel="stylesheet" href="css/style.css">
+        <link
+            href="https://api.tiles.mapbox.com/mapbox-gl-js/v0.53.0/mapbox-gl.css"
+            rel="stylesheet"
+        />
+    </head>
+
+    <body>
+        <!--no script warning-->
+        <noscript>Enable Javascript to run this page.</noscript>
+
+        <main class="page">
+            <header class="header"></header>
+            <section class="main">
+                <div class="basemap"></div>
+            </section>
+        </main>
+
+        <!-- Load Scripts -->
+        <!-- Mapbox JS -->
+        <script
+            src="https://api.tiles.mapbox.com/mapbox-gl-js/v0.53.0/mapbox-gl.js"
+        ></script>
+
+        <!-- Lucide Icons -->
+        <script src="https://unpkg.com/lucide@latest"></script>
+        <script>
+            lucide.createIcons();
+        </script>
+
+        <!-- Local JS -->
+        <script src="js/main.js"></script>
+        <script src="js/map.js"></script>
+    </body>
+</html>
