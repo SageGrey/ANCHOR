@@ -8,7 +8,7 @@
     --header-3: 700 1.875rem/2.25rem var(--font-sans); /* 30/36 */
     --header-4: 700 1.5rem/2rem var(--font-sans); /* 24/32 */
     --header-5: 700 1.25rem/1.75rem var(--font-sans); /* 20/28 */
-    --header-6: 500 1.125rem/1.5rem var(--font-sans); /* 18/24 */
+    --header-6: 700 1.125rem/1.5rem var(--font-sans); /* 18/24 */
     --body: 400 1rem/1.5rem var(--font-sans); /* 16/24 */
     --utility: 500 0.875rem/1.25rem var(--font-sans); /* 14/20 */
     --caption: 400 0.75rem/1rem var(--font-sans); /* 12/16 */
@@ -377,12 +377,23 @@ a:hover {
 
 /* -------------- SITE POPUP -------------- */
 .site-popup .mapboxgl-popup-content {
+    box-sizing: border-box;
     position: relative;
     padding: 16px;
     background: var(--brown-50);
     border: 1.5px solid var(--blue-700);
     border-radius: var(--radius);
     box-shadow: none;
+}
+
+/* Caps the card at roughly the map's own height so a long popup
+   (chart + legend + practices) scrolls internally instead of
+   overflowing past the map into whatever's below it. */
+@media (max-width: 1000px) {
+    .site-popup .mapboxgl-popup-content {
+        max-height: 55vh;
+        overflow-y: auto;
+    }
 }
 
 .site-popup .mapboxgl-popup-tip {
@@ -785,9 +796,29 @@ a:hover {
         right: 20px;
     }
 
+    /* .main has overflow:hidden (needed for the map canvas/SVG), which
+       was silently clipping the bottom of a tall drawer on a short
+       mobile viewport — looking like it was "hidden behind" the
+       footer/filters below it, when it was actually just cut off.
+       position:fixed escapes that clipping (and any stacking-context
+       ambiguity with the footer/filters rows) by detaching from .main
+       entirely. Horizontal centering is static (left:50% + transform),
+       but `top` is set inline by positionDrawerBelowToggle() in
+       main.js — it needs the toggle button's actual on-screen
+       position, which depends on the topbar's content-driven height
+       (varies with how the tagline wraps), not something CSS alone
+       can express reliably. */
     .drawer {
-        left: auto;
-        right: 0;
+        position: fixed;
+        left: 50%;
+        max-height: 80vh;
+        overflow-y: auto;
+        z-index: 50;
+        transform: translateX(-50%) translateY(-8px);
+    }
+
+    .drawer.is-open {
+        transform: translateX(-50%) translateY(0);
     }
 
     /* #map-vis scoping (not just the bare class) matters here —
@@ -993,6 +1024,9 @@ a:hover {
 @media (max-width: 500px) {
     .footer__stat-value {
         font: var(--header-4);
+    }
+    .site-popup__title {
+        font: var(--header-6);
     }
 }
 

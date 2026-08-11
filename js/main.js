@@ -337,6 +337,19 @@ function initDrawerToggle(toggleId, drawerId, containerSelector) {
     const drawer = document.getElementById(drawerId);
     const closeBtn = drawer.querySelector(".drawer__close");
 
+    // On mobile the drawer is position:fixed (see style.css) and
+    // horizontally centered by CSS alone, but still needs to sit just
+    // below the toggle button vertically — computed here from the
+    // button's actual on-screen position rather than hardcoded, since
+    // the topbar's height varies with how the tagline wraps. No-op on
+    // desktop, where the drawer stays position:absolute and CSS alone
+    // already positions it correctly relative to the button.
+    function positionDrawerBelowToggle() {
+        if (getComputedStyle(drawer).position !== "fixed") return;
+        const rect = toggle.getBoundingClientRect();
+        drawer.style.top = `${rect.bottom + 6}px`;
+    }
+
     function closeDrawer() {
         drawer.classList.remove("is-open");
         toggle.setAttribute("aria-expanded", "false");
@@ -345,6 +358,13 @@ function initDrawerToggle(toggleId, drawerId, containerSelector) {
     toggle.addEventListener("click", () => {
         const isOpen = drawer.classList.toggle("is-open");
         toggle.setAttribute("aria-expanded", isOpen);
+        if (isOpen) positionDrawerBelowToggle();
+    });
+
+    // Recompute if the viewport is resized/rotated while open, since
+    // the button's position can shift (e.g. topbar reflow on rotate).
+    window.addEventListener("resize", () => {
+        if (drawer.classList.contains("is-open")) positionDrawerBelowToggle();
     });
 
     closeBtn.addEventListener("click", closeDrawer);

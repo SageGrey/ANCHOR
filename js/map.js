@@ -823,19 +823,48 @@ class MapVis {
             .querySelector(".site-popup__close")
             .addEventListener("click", () => vis.closeSitePopup());
 
-        // Recenter so the marker and the full popup both fit in the
-        // viewport when possible. If together they're taller than the
-        // viewport, fall back to centering on the marker itself so
-        // it's the point (not the popup) that stays fully visible.
-        let popupHeight = vis.activePopup
-            .getElement()
-            .getBoundingClientRect().height;
         let containerHeight = vis.map.getContainer().clientHeight;
-        let contentHeight = hexHalfHeight * 2 + popupGap + popupHeight;
-        let centerOffsetY =
-            contentHeight <= containerHeight
+        let isMobile = vis.map.getContainer().clientWidth < 1000;
+
+        let centerOffsetY;
+        if (isMobile) {
+            // The map area is short on mobile (most of the viewport's
+            // height goes to header/stats/filters/footer chrome), so
+            // there's rarely room to center the marker+popup as one
+            // unit. Anchoring the marker near the top instead gives
+            // the popup (which opens downward) the most possible room
+            // to read before its own internal scroll kicks in.
+            let topInset = 20;
+            centerOffsetY = -(containerHeight / 2 - topInset);
+
+            // .main clips anything extending past the map's own box
+            // (needed for the canvas/SVG), so a flat CSS max-height
+            // isn't enough — if it's taller than what's actually left
+            // below the marker, the excess gets silently cut off by
+            // that clipping instead of becoming reachable via scroll.
+            // Compute the real remaining space and set it directly,
+            // overriding style.css's max-height on this popup instance.
+            let popupTopOffset = hexHalfHeight + popupGap;
+            let bottomMargin = 20;
+            let maxPopupHeight =
+                containerHeight - topInset - popupTopOffset - bottomMargin;
+            vis.activePopup
+                .getElement()
+                .querySelector(".mapboxgl-popup-content")
+                .style.maxHeight = `${maxPopupHeight}px`;
+        } else {
+            // Recenter so the marker and the full popup both fit in the
+            // viewport when possible. If together they're taller than
+            // the viewport, fall back to centering on the marker itself
+            // so it's the point (not the popup) that stays fully visible.
+            let popupHeight = vis.activePopup
+                .getElement()
+                .getBoundingClientRect().height;
+            let contentHeight = hexHalfHeight * 2 + popupGap + popupHeight;
+            centerOffsetY = contentHeight <= containerHeight
                 ? -(popupGap + popupHeight) / 2
                 : 0;
+        }
 
         // Zoom 5 is a floor, not a fixed target — if already zoomed in
         // past it, stay there rather than zooming back out to 5.
