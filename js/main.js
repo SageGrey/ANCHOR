@@ -336,6 +336,26 @@ function initDrawerToggle(toggleId, drawerId, containerSelector) {
     const toggle = document.getElementById(toggleId);
     const drawer = document.getElementById(drawerId);
     const closeBtn = drawer.querySelector(".drawer__close");
+    const drawerHome = drawer.parentElement; // .learn-more — for restoring on desktop
+
+    // iOS Safari has a known bug where position:fixed descendants of
+    // an overflow:hidden ancestor (.main, needed for the map canvas)
+    // don't reliably escape that ancestor's clipping on a real device
+    // — even though desktop browsers, including a manually resized
+    // window, render it correctly per spec. Rather than fight that
+    // with more CSS, this moves the drawer to be a direct child of
+    // <body> while mobile, sidestepping the ambiguity entirely (the
+    // same technique most modal/portal libraries use). Restored back
+    // inside .learn-more at desktop width, where its position:absolute
+    // needs that ancestor to resolve against.
+    function relocateDrawerForViewport() {
+        const isMobile = getComputedStyle(drawer).position === "fixed";
+        if (isMobile && drawer.parentElement !== document.body) {
+            document.body.appendChild(drawer);
+        } else if (!isMobile && drawer.parentElement !== drawerHome) {
+            drawerHome.appendChild(drawer);
+        }
+    }
 
     // On mobile the drawer is position:fixed (see style.css) and
     // horizontally centered by CSS alone, but still needs to sit just
@@ -356,21 +376,31 @@ function initDrawerToggle(toggleId, drawerId, containerSelector) {
     }
 
     toggle.addEventListener("click", () => {
+        relocateDrawerForViewport();
         const isOpen = drawer.classList.toggle("is-open");
         toggle.setAttribute("aria-expanded", isOpen);
         if (isOpen) positionDrawerBelowToggle();
     });
 
     // Recompute if the viewport is resized/rotated while open, since
-    // the button's position can shift (e.g. topbar reflow on rotate).
+    // the button's position can shift (e.g. topbar reflow on rotate)
+    // and mobile<->desktop can flip mid-session (e.g. rotating a
+    // tablet across the 1000px breakpoint).
     window.addEventListener("resize", () => {
+        relocateDrawerForViewport();
         if (drawer.classList.contains("is-open")) positionDrawerBelowToggle();
     });
 
     closeBtn.addEventListener("click", closeDrawer);
 
+    // Checks both containerSelector (the toggle button) and the
+    // drawer's own id — the drawer may currently live outside
+    // containerSelector's subtree (see relocateDrawerForViewport).
     document.addEventListener("click", (event) => {
-        if (!event.target.closest(containerSelector)) {
+        if (
+            !event.target.closest(containerSelector) &&
+            !event.target.closest(`#${drawerId}`)
+        ) {
             closeDrawer();
         }
     });
