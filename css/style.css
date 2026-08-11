@@ -7,7 +7,7 @@
     --header-2: 700 2.25rem/2.5rem var(--font-sans); /* 36/40 */
     --header-3: 700 1.875rem/2.25rem var(--font-sans); /* 30/36 */
     --header-4: 700 1.5rem/2rem var(--font-sans); /* 24/32 */
-    --header-5: 500 1.25rem/1.75rem var(--font-sans); /* 20/28 */
+    --header-5: 700 1.25rem/1.75rem var(--font-sans); /* 20/28 */
     --header-6: 500 1.125rem/1.5rem var(--font-sans); /* 18/24 */
     --body: 400 1rem/1.5rem var(--font-sans); /* 16/24 */
     --utility: 500 0.875rem/1.25rem var(--font-sans); /* 14/20 */
@@ -86,4 +86,925 @@
     --utility-red: #e52207;
     --utility-yellow: #ffbe2e;
     --utility-green: #16a34a;
+    --utility-disabled-bg: #33507c;
+    --utility-disabled-text: #7089ae;
+
+    /* SHAPE */
+    --radius: 6px;
+}
+
+/* ---------------- BODY ---------------- */
+body {
+    margin: 0;
+}
+
+/* ---------------- PAGE ---------------- */
+.page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* ------------- FOCUS STATE ------------- */
+:focus-visible {
+    outline: 2px solid var(--blue-600);
+    outline-offset: 2px;
+}
+
+/* ---------------- ICONS ---------------- */
+svg[data-lucide] {
+    width: 20px;
+    height: 20px;
+}
+
+/* ---------------- LINKS ---------------- */
+a {
+    font: var(--caption);
+    color: var(--blue-700);
+    text-decoration: underline;
+}
+
+a:hover {
+    color: var(--blue-900);
+}
+
+/* --------------- BUTTONS --------------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    font: var(--body);
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.btn:disabled {
+    background: var(--utility-disabled-bg);
+    color: var(--utility-disabled-text);
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--brown-100);
+    color: var(--blue-900);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--brown-200);
+}
+
+.btn-secondary {
+    background: var(--blue-200);
+    color: var(--blue-900);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--blue-300);
+}
+
+/* ------------- HEADER BAR ------------- */
+.header {
+    position: relative;
+    z-index: 10; /* above the map canvas */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 30px 10px 15px;
+    background: var(--blue-900);
+}
+
+.header__brand {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+}
+
+.header__logo {
+    max-width: 75px;
+    max-height: 75px;
+}
+
+.header__tagline {
+    font: var(--header-4);
+    color: var(--grey-50);
+    padding-right: 50px;
+}
+
+.header__controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 15px;
+}
+
+/* Filters */
+.filter-group {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.filter-group__label {
+    font: var(--caption);
+    color: var(--grey-50);
+}
+
+.filter-group__toggle {
+    justify-content: space-between;
+    width: 170px;
+}
+
+.filter-group__value {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.filter-group__chevron {
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}
+
+.filter-group__toggle[aria-expanded="true"] .filter-group__chevron {
+    transform: rotate(180deg);
+}
+
+.filter-group__panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    min-width: 240px;
+    max-width: 280px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 8px 0px;
+    background: var(--brown-50);
+    border: 1.5px solid var(--blue-900);
+    border-radius: var(--radius);
+}
+
+.filter-group__panel[hidden] {
+    display: none;
+}
+
+.filter-group__option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px;
+    font: var(--utility);
+    color: var(--blue-900);
+    cursor: pointer;
+}
+
+.filter-group__option:hover {
+    background: var(--brown-100);
+}
+
+.filter-group__option input[type="checkbox"] {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    accent-color: var(--blue-900);
+}
+
+.icon-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+/* Wraps #clear-filters-btn/#export-map-btn so mobile can give their
+   grid cell a painted background (grid gaps/margins are transparent —
+   see MOBILE below). `contents` on desktop keeps the wrapper invisible
+   so the button still behaves as a direct flex child. */
+.mobile-controls-cell {
+    display: contents;
+}
+
+/* ---------------- MAIN ---------------- */
+.main {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+}
+
+.map-vis {
+    width: 100%;
+    height: 100%;
+}
+
+.overlay {
+    width: 100%;
+    height: 100%;
+}
+
+/* -------------- STATE OUTLINES -------------- */
+.state-fill {
+    fill: var(--grey-50);
+    stroke: none;
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.state-outline {
+    fill: none;
+    stroke: var(--blue-900);
+    stroke-width: 0.65px;
+    stroke-dasharray: 4 2;
+    pointer-events: none;
+}
+
+/* -------------- MAPBOX ATTRIBUTION -------------- */
+.mapboxgl-ctrl-attrib {
+    font-size: 10px;
+    padding: 0 6px;
+    line-height: 16px;
+}
+
+.mapboxgl-ctrl-attrib-button {
+    width: 16px;
+    height: 16px;
+}
+
+/* -------------- ANCHOR POINTS -------------- */
+.anchor {
+    cursor: pointer;
+}
+
+.anchor__fill {
+    fill: var(--brand-navy);
+}
+
+.anchor__stroke {
+    fill: none;
+    stroke: var(--brand-navy);
+    stroke-width: 2px;
+}
+
+.anchor__count {
+    font: var(--utility);
+    fill: var(--grey-50);
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.anchor--faded .anchor__fill {
+    fill: var(--grey-400);
+}
+
+.anchor--faded .anchor__stroke {
+    stroke: var(--grey-400);
+}
+
+.anchor--selected .anchor__fill {
+    fill: var(--blue-700);
+}
+
+.anchor--selected .anchor__stroke {
+    stroke: var(--blue-700);
+}
+
+/* -------------- SITE POPUP -------------- */
+.site-popup .mapboxgl-popup-content {
+    position: relative;
+    padding: 16px;
+    background: var(--brown-50);
+    border: 1.5px solid var(--blue-700);
+    border-radius: var(--radius);
+    box-shadow: none;
+}
+
+.site-popup .mapboxgl-popup-tip {
+    display: none;
+}
+
+.site-popup__close {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    background: none;
+    border: none;
+    color: var(--blue-900);
+    cursor: pointer;
+}
+
+.site-popup__title {
+    font: var(--header-5);
+    color: var(--blue-700);
+    margin: 0 24px 8px 0;
+}
+
+.site-popup__label {
+    display: block;
+    margin: 10px 0 4px;
+    font: var(--caption);
+    color: var(--blue-700);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.site-popup__field {
+    margin: 0;
+    font: var(--caption);
+    color: var(--blue-900);
+}
+
+.site-popup__empty {
+    margin: 0;
+    font: var(--caption);
+    color: var(--grey-500);
+    font-style: italic;
+}
+
+.site-popup__chart {
+    display: flex;
+    width: 180px;
+    height: 8px;
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.site-popup__chart-segment {
+    height: 100%;
+}
+
+.site-popup__legend,
+.site-popup__practices {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.site-popup__legend {
+    flex-direction: column;
+    column-gap: 10px;
+}
+
+.site-popup__legend li,
+.site-popup__practices li {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font: var(--caption);
+    color: var(--blue-900);
+}
+
+.site-popup__practices li::before {
+    content: "•";
+    font-weight: 700;
+    color: var(--brand-navy);
+}
+
+.site-popup__swatch {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+/* ------------- LEARN MORE ------------- */
+.learn-more {
+    position: absolute;
+    top: -2px;
+    left: 10px;
+    z-index: 5;
+}
+
+.learn-more-btn {
+    display: inline-flex;
+    align-items: center;
+    font: var(--utility);
+    text-transform: uppercase;
+    border: 1.5px solid var(--blue-900);
+    border-radius: 0 0 var(--radius) var(--radius);
+    cursor: pointer;
+}
+
+.drawer {
+    /* No global box-sizing reset in this file (default content-box),
+       so without this the 20px padding + border would add ~43px on
+       top of width/max-width — enough to push a right-anchored
+       drawer past .main's overflow:hidden on a narrow viewport. */
+    box-sizing: border-box;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 20;
+    width: 400px;
+    max-width: calc(100vw - 40px);
+    padding: 20px;
+    background: var(--brown-50);
+    border: 1.5px solid var(--blue-900);
+    border-radius: var(--radius);
+    transform: translateY(-8px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* max-width alone only caps overflow (viewport <440px); below 500px
+   this makes the drawer actively fill the available width instead of
+   sitting at a fixed 400px with unused room on either side. */
+@media (max-width: 500px) {
+    .drawer {
+        width: calc(100vw - 40px);
+    }
+}
+
+.drawer.is-open {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.drawer__close {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    background: none;
+    border: none;
+    color: var(--blue-900);
+    cursor: pointer;
+}
+
+.drawer__title {
+    font: var(--header-5);
+    color: var(--blue-900);
+    margin: 0 24px 12px 0;
+}
+
+.drawer__body {
+    font: var(--body);
+    color: var(--blue-900);
+    margin: 0;
+}
+
+/* -------------- LAYERS PANEL -------------- */
+.layers-toggle {
+    position: relative;
+}
+
+/* Same look as .filter-group__panel; anchored right since this is the
+   header's rightmost control (left:0 would push it off the viewport) */
+.layers-panel {
+    left: auto;
+    right: 0;
+    min-width: 220px;
+}
+
+.layers-panel__clear {
+    align-self: flex-start;
+    margin: 4px 8px 8px;
+    padding-left: 5px;
+    background: none;
+    border: none;
+    font: var(--caption);
+    color: var(--blue-700);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.layers-panel__clear:hover {
+    color: var(--blue-900);
+}
+
+/* ---------------- FOOTER ---------------- */
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+    padding: 16px 30px;
+    background: var(--brown-50);
+}
+
+.footer__left {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+}
+
+.footer__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+/* Matches assets/images/tlp-logo.svg's own brand color; not part of the token system */
+.footer__eyebrow {
+    font: var(--caption);
+    color: #736357;
+}
+
+.footer__logo {
+    width: 130px;
+    height: auto;
+}
+
+.footer__disclaimer {
+    max-width: 300px;
+    margin: 0;
+    font: var(--caption);
+    color: #736357;
+}
+
+.footer__right {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+}
+
+.footer__stats {
+    display: flex;
+    gap: 40px;
+}
+
+.footer__stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+}
+
+.footer__stat-value {
+    font: var(--header-2);
+    color: var(--blue-900);
+}
+
+.footer__stat-label {
+    max-width: 200px;
+    font: var(--caption);
+    color: var(--blue-900);
+    text-align: left;
+}
+
+/* Swapped per breakpoint below; both render the same on desktop's wider
+   layout (.footer__stat-label--short stays hidden) */
+.footer__stat-label--short {
+    display: none;
+}
+
+.footer__stat-value-suffix {
+    color: var(--grey-300);
+}
+
+.footer__export {
+    font: var(--utility);
+    white-space: nowrap;
+}
+
+/* ==================================================================
+   MOBILE (<=1000px)
+
+   Desktop's header groups brand+filters+layers in one row, its footer
+   groups brand+stats+export in another; mobile interleaves those same
+   pieces with the map instead (topbar, map, stats, filters, brand —
+   see the Figma mockup). Rather than duplicate markup, .header/.footer
+   go `display: contents` here so their children become direct grid
+   items of .page and can be placed independently via
+   grid-template-areas — every id-keyed element (#clear-filters-btn,
+   #export-map-btn, stat spans) is the same node desktop uses, so
+   main.js/map.js/export.js need no changes.
+   ================================================================== */
+
+/* Stat numbers get cramped against their labels before the rest of
+   the layout needs to reflow, so this gets its own wider breakpoint
+   rather than waiting for the full mobile layout at 1000px. */
+@media (max-width: 1110px) {
+    .footer__stats {
+        gap: 20px;
+    }
+    .footer__stat-value {
+        font: var(--header-3);
+    }
+}
+
+@media (max-width: 1000px) {
+    .page {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        grid-template-rows: auto 1fr auto auto auto;
+        grid-template-areas:
+            "topbar-brand topbar-brand topbar-layers"
+            "main         main         main"
+            "stats        stats        stats"
+            "controls     clear        export"
+            "footer-brand footer-brand footer-brand";
+        /* 0, not a gap value — grid gaps are transparent, and some
+           rows need to read as one continuous painted band. Spacing
+           comes from item padding instead (see .mobile-controls-cell). */
+        column-gap: 0;
+        row-gap: 0;
+    }
+
+    /* ---- Topbar: brand + layers only; filters/clear move to the
+       controls row below ---- */
+    .header {
+        display: contents;
+    }
+
+    .header__logo {
+        max-width: 60px;
+        max-height: 60px;
+    }
+
+    .header__brand {
+        grid-area: topbar-brand;
+        padding: 10px 0 10px 20px;
+        background: var(--blue-900);
+        gap: 15px;
+    }
+
+    .header__tagline {
+        font: var(--header-5);
+        padding-right: 10px;
+    }
+
+    .header__controls {
+        display: contents;
+    }
+
+    /* Only filter-groups hide — #clear-filters-btn is still nested
+       under .header__controls (inside #mobile-clear-cell now) but
+       stays visible, relocated via that wrapper's own grid-area. */
+    .header__controls .filter-group {
+        display: none;
+    }
+
+    .layers-toggle {
+        grid-area: topbar-layers;
+        display: flex;
+        align-items: center;
+        /* Insets the button from the edge. Doesn't carry through to
+           .layers-panel — an absolute child's `right:0` resolves
+           against the ancestor's outer edge, not its padding — so
+           the panel needs its own right offset below. */
+        padding: 10px 20px 10px 15px;
+        background: var(--blue-900);
+    }
+
+    .layers-panel {
+        right: 20px;
+    }
+
+    /* ---- Map: Learn More flips to the right so it doesn't compete
+       with the topbar's own right-aligned layers button above it;
+       Mapbox's own zoom/compass control moves to top-left so the two
+       don't collide ---- */
+    .main {
+        grid-area: main;
+    }
+
+    .learn-more {
+        left: auto;
+        right: 20px;
+    }
+
+    .drawer {
+        left: auto;
+        right: 0;
+    }
+
+    /* #map-vis scoping (not just the bare class) matters here —
+       mapbox-gl.css loads AFTER style.css in index.html, so without the
+       extra specificity Mapbox's own same-class rule would win. */
+    #map-vis .mapboxgl-ctrl-top-right {
+        left: 0;
+        right: auto;
+    }
+
+    /* Repositioning works; the 20px edge inset doesn't — padding,
+       margin, and transform have all lost to Mapbox's own layout for
+       this container. Known limitation, not yet resolved. */
+    #map-vis .mapboxgl-ctrl-top-left {
+        transform: translateX(20px) !important;
+    }
+
+    /* ---- Stats: pulled out of the footer to sit right under the map ---- */
+    .footer {
+        display: contents;
+    }
+
+    .footer__right {
+        display: contents;
+    }
+
+    .footer__stats {
+        grid-area: stats;
+        justify-content: flex-start;
+        gap: 50px;
+        padding: 10px 20px;
+        background: var(--brown-50);
+    }
+
+    .footer__stat {
+        gap: 1px;
+    }
+
+    .footer__stat-label {
+        max-width: none;
+    }
+
+    .footer__stat-label--full {
+        display: none;
+    }
+
+    .footer__stat-label--short {
+        display: inline;
+    }
+
+    /* ---- Controls row: mobile-filters accordion + clear + export
+       (same #clear-filters-btn/#export-map-btn desktop uses, each
+       wrapped in a .mobile-controls-cell — see above) ---- */
+    .mobile-filters {
+        grid-area: controls;
+    }
+
+    .mobile-controls-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+        background: var(--blue-900);
+    }
+
+    #mobile-clear-cell {
+        grid-area: clear;
+        padding: 20px 0px;
+        align-items: flex-end;
+    }
+
+    #mobile-export-cell {
+        grid-area: export;
+        padding: 20px 0px;
+        align-items: flex-end;
+    }
+
+    /* ---- Brand/disclaimer: sits at the very bottom, stacked instead
+       of side-by-side (too tight for a row at phone widths) ---- */
+    .footer__left {
+        grid-area: footer-brand;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 12px 20px 20px 20px;
+        background: var(--brown-50);
+    }
+
+    .footer__brand {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .footer__disclaimer {
+        max-width: 500px;
+    }
+
+    .footer__logo {
+        width: 120px;
+    }
+}
+
+/* -------------- MOBILE FILTERS (combined accordion) -------------- */
+.mobile-filters {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 20px;
+    background: var(--blue-900);
+}
+
+/* Must come after the unconditional display:flex above — equal
+   specificity, later source order wins. */
+@media (min-width: 1001px) {
+    .mobile-filters {
+        display: none;
+    }
+}
+
+.mobile-filters__label {
+    font: var(--caption);
+    color: var(--grey-50);
+}
+
+.mobile-filters__toggle {
+    justify-content: space-between;
+    max-width: 400px;
+    width: 100%;
+}
+
+.mobile-filters__chevron {
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}
+
+.mobile-filters__toggle[aria-expanded="true"] .mobile-filters__chevron {
+    transform: rotate(180deg);
+}
+
+/* Opens upward (bottom-anchored) — .mobile-filters sits near the
+   bottom of a fixed-height, no-scroll mobile layout, so opening
+   downward would run past the viewport, out of reach. */
+.mobile-filters__panel {
+    box-sizing: border-box; /* see .drawer's comment */
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 20px;
+    /* .mobile-filters only spans the grid's first column, so a
+       `right` offset would be relative to that column's edge, not
+       the viewport's — width is what actually lands the right edge
+       20px from the true edge of the screen. */
+    width: calc(100vw - 40px);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    max-height: 70vh;
+    max-width: 400px;
+    overflow-y: auto;
+    background: var(--brown-50);
+    border: 1.5px solid var(--blue-900);
+    border-radius: var(--radius);
+}
+
+.mobile-filters__panel[hidden] {
+    display: none;
+}
+
+.mobile-filters__group + .mobile-filters__group {
+    border-top: 1px solid var(--brown-200);
+}
+
+.mobile-filters__group-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 12px;
+    background: none;
+    border: none;
+    font: var(--utility);
+    color: var(--blue-900);
+    text-align: left;
+    cursor: pointer;
+}
+
+.mobile-filters__group-toggle[aria-expanded="true"] i {
+    transform: rotate(180deg);
+}
+
+.mobile-filters__group-panel {
+    display: flex;
+    flex-direction: column;
+    padding: 0 0 6px;
+}
+
+.mobile-filters__group-panel[hidden] {
+    display: none;
+}
+
+@media (max-width: 500px) {
+    .footer__stat-value {
+        font: var(--header-4);
+    }
+}
+
+@media (max-width: 400px) {
+    .footer__stats {
+        grid-area: stats;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 10px 20px;
+        background: var(--brown-50);
+    }
+    .footer__stat-value {
+        font: var(--header-5);
+    }
 }
