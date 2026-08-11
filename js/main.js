@@ -99,7 +99,15 @@ function countActiveFilters() {
     ).size;
 }
 
-// Updates one desktop dropdown's button text ("Dropdown" /
+// Per-category default text, shown when nothing's selected — matches
+// the initial value baked into each dropdown's markup in index.html.
+const FILTER_DEFAULT_TEXT = {
+    "owner-filter": "All Owners",
+    "landcover-filter": "All Types",
+    "practices-filter": "All Practices",
+};
+
+// Updates one desktop dropdown's button text ("All Owners" /
 // "Public" / "Public +2"). filterId matches a .filter-group's id
 // (e.g. "owner-filter") and doubles as the filtersChanged event id.
 function updateDesktopFilterLabel(filterId, values) {
@@ -108,7 +116,7 @@ function updateDesktopFilterLabel(filterId, values) {
     const valueLabel = group.querySelector(".filter-group__value");
 
     if (values.length === 0) {
-        valueLabel.textContent = "Dropdown";
+        valueLabel.textContent = FILTER_DEFAULT_TEXT[filterId];
     } else {
         const firstOption = group
             .querySelector(`.filter-checkbox[value="${CSS.escape(values[0])}"]`)
