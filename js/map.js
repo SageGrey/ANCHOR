@@ -227,9 +227,18 @@ function describeSite(feature) {
         siteHasPractice(feature, code),
     );
 
+    // The survey's own total, not the sum of the land-cover columns
+    // above — the two often disagree (a site can report a total with no
+    // per-cover breakdown at all), and the total is what the footer
+    // stats and the map export are built from.
+    let acresTotal = properties.Calculation_ANCHOR_ACRES_TOTAL;
+
     return {
         name: properties.ANCHOR_SiteName,
         ownership: getOwnership(feature),
+        acresTotal: typeof acresTotal === "number" && acresTotal > 0
+            ? acresTotal
+            : null,
         landCover,
         practices,
     };
@@ -262,6 +271,14 @@ function siteInfoHTML(feature) {
               .join("")}</ul>`
         : `<p class="site-popup__empty">No data recorded</p>`;
 
+    let acres = info.acresTotal !== null
+        ? `<p class="site-popup__field">
+            <span class="site-popup__acres">${Math.round(
+                info.acresTotal,
+            ).toLocaleString()}</span> acres
+        </p>`
+        : `<p class="site-popup__empty">No data recorded</p>`;
+
     return `
         <button type="button" class="site-popup__close" aria-label="Close">
             <i data-lucide="x"></i>
@@ -271,6 +288,8 @@ function siteInfoHTML(feature) {
         <p class="site-popup__field">
             ${OWNERSHIP_LABELS[info.ownership] || "Unknown"}
         </p>
+        <p class="site-popup__label">Total Acres</p>
+        ${acres}
         <p class="site-popup__label">Land Cover</p>
         ${chart}
         <p class="site-popup__label">Conservation Practices</p>
