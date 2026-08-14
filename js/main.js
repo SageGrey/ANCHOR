@@ -37,7 +37,12 @@ let eventHandler = {
 
 function initMainPage(dataArray) {
     myMapVis = new MapVis("map-vis", dataArray, eventHandler);
-    updateFooterStats(dataArray[0].features);
+
+    // Count the sites the map can actually show, which is what MapVis
+    // reports from here on. The raw array also holds records with no
+    // location. Counting those at load and dropping them at the first
+    // filter change made the total fall on its own and never come back.
+    updateFooterStats(myMapVis.features);
 }
 
 // Populate and update the footer stat tiles
