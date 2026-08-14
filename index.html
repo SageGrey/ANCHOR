@@ -49,7 +49,7 @@
                         <button
                             type="button"
                             class="filter-group__toggle btn btn-primary"
-                            aria-haspopup="listbox"
+                            aria-haspopup="true"
                             aria-expanded="false"
                             aria-labelledby="owner-filter-label"
                         >
@@ -59,7 +59,7 @@
                                 class="filter-group__chevron"
                             ></i>
                         </button>
-                        <div class="filter-group__panel" role="listbox" hidden>
+                        <div class="filter-group__panel" role="group" aria-labelledby="owner-filter-label" hidden>
                             <label class="filter-group__option">
                                 <input type="checkbox" class="filter-checkbox" value="non-profit">
                                 Non-Profit
@@ -85,7 +85,7 @@
                         <button
                             type="button"
                             class="filter-group__toggle btn btn-primary"
-                            aria-haspopup="listbox"
+                            aria-haspopup="true"
                             aria-expanded="false"
                             aria-labelledby="landcover-filter-label"
                         >
@@ -95,7 +95,7 @@
                                 class="filter-group__chevron"
                             ></i>
                         </button>
-                        <div class="filter-group__panel" role="listbox" hidden>
+                        <div class="filter-group__panel" role="group" aria-labelledby="landcover-filter-label" hidden>
                             <label class="filter-group__option">
                                 <input type="checkbox" class="filter-checkbox" value="CroplandwCP">
                                 Cropland
@@ -141,7 +141,7 @@
                         <button
                             type="button"
                             class="filter-group__toggle btn btn-primary"
-                            aria-haspopup="listbox"
+                            aria-haspopup="true"
                             aria-expanded="false"
                             aria-labelledby="practices-filter-label"
                         >
@@ -151,7 +151,7 @@
                                 class="filter-group__chevron"
                             ></i>
                         </button>
-                        <div class="filter-group__panel" role="listbox" hidden>
+                        <div class="filter-group__panel" role="group" aria-labelledby="practices-filter-label" hidden>
                             <label class="filter-group__option">
                                 <input type="checkbox" class="filter-checkbox" value="NWVC">
                                 Chemical Veg. Control
@@ -204,7 +204,7 @@
                             class="icon-btn btn btn-secondary"
                             id="toggle-layers-btn"
                             aria-label="Toggle map layers"
-                            aria-haspopup="listbox"
+                            aria-haspopup="true"
                             aria-expanded="false"
                             aria-controls="layers-panel"
                         >
@@ -213,7 +213,8 @@
                         <div
                             class="filter-group__panel layers-panel"
                             id="layers-panel"
-                            role="listbox"
+                            role="group"
+                            aria-label="Map layers"
                             hidden
                         >
                             <button
@@ -230,6 +231,12 @@
                     </div>
                 </div>
             </header>
+            <!-- Tells a screen reader what a filter change did. The map
+                 itself shows the result, but a person who cannot see it
+                 gets no other signal that anything happened. Updated by
+                 announceFilterResult in main.js. -->
+            <p class="visually-hidden" id="filter-status" role="status" aria-live="polite"></p>
+
             <section class="main">
                 <div class="learn-more">
                     <button
@@ -342,6 +349,7 @@
                             type="button"
                             class="icon-btn btn btn-secondary"
                             id="export-map-btn"
+                            aria-label="Export the map as an image"
                         >
                             <i data-lucide="download"></i>
                         </button>

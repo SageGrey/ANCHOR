@@ -74,7 +74,27 @@ eventHandler.bind("statesResolved", function (event) {
 // actually shown (at full opacity) on the map.
 eventHandler.bind("filteredFeaturesChanged", function (event) {
     updateFooterStats(event.detail.features);
+    announceFilterResult(event.detail.features.length);
 });
+
+// Says out loud what a filter change did.
+//
+// The map and the stat tiles both show the result, and neither reaches
+// a person using a screen reader: the map is a canvas, and a number
+// that changes on screen raises no event. This writes the result into
+// a live region, which is read out as soon as it changes.
+//
+// Zero matches matters most. On screen an empty map is obvious. With
+// no announcement it is silence, which reads as "nothing happened".
+function announceFilterResult(count) {
+    const status = document.getElementById("filter-status");
+    if (!status) return;
+
+    status.textContent = count === 0
+        ? "No ANCHOR sites match the selected filters."
+        : `${count} ANCHOR site${count === 1 ? "" : "s"} match ` +
+            `the selected filters.`;
+}
 
 //* HEADER FILTER DROPDOWNS *//
 //

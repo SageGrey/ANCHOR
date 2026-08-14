@@ -170,6 +170,41 @@ function displayCoordinates(feature, statePolygons) {
     }
 }
 
+//* KEYBOARD ACCESS TO THE MARKERS *//
+
+// The markers are SVG groups. A browser gives no keyboard access to
+// those, so before this the whole map could be used with a mouse only.
+// A keyboard user could reach the filters, see the counts change, and
+// never open one site.
+//
+// Each marker becomes a button: it takes focus in reading order, it
+// says what it is, and Enter or Space does what a click does.
+//
+// A cluster reports how many sites it holds and that it opens them. A
+// single site reports its name, and says the position is approximate
+// when it is, because that fact is otherwise carried only by a circle.
+function anchorAccessibleName(d) {
+    if (d.properties.cluster) {
+        return `${d.properties.point_count} ANCHOR sites. ` +
+            `Activate to zoom in and separate them.`;
+    }
+    let name = d.properties.ANCHOR_SiteName;
+    let suffix = isLocationApproximate(d) ? ", approximate location" : "";
+    return `${name}${suffix}. Activate for details.`;
+}
+
+function makeAnchorOperable(selection, activate) {
+    selection
+        .attr("tabindex", 0)
+        .attr("role", "button")
+        .on("keydown", function (event, d) {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            // Space scrolls the page by default.
+            event.preventDefault();
+            activate(d);
+        });
+}
+
 // A parallel set of features that carry the shown position. The
 // properties object is shared with the true feature, not copied, so a
 // filter gives the same answer against either set.
@@ -818,6 +853,11 @@ class MapVis {
                             ? vis.zoomToCluster(d)
                             : vis.showSitePopup(d),
                     );
+                makeAnchorOperable(g, (d) =>
+                    d.properties.cluster
+                        ? vis.zoomToCluster(d)
+                        : vis.showSitePopup(d)
+                );
                 // First child, so the hexagon paints on top of it.
                 g.append("circle").attr("class", "anchor__approx");
                 g.append("path").attr("class", "anchor__stroke");
@@ -825,6 +865,11 @@ class MapVis {
                 g.append("text").attr("class", "anchor__count");
                 return g;
             });
+
+        // The name has to be reset on every render, not only on enter:
+        // a group can change from a cluster of 4 to a cluster of 7, and
+        // its bound datum changes under the same DOM node.
+        vis.anchors.attr("aria-label", anchorAccessibleName);
 
         // Size each hexagon (fill + offset stroke ring) and label clusters
         vis.anchors.each(function (d) {
@@ -868,6 +913,7 @@ class MapVis {
                         (d) => d.properties.ANCHOR_SiteName,
                     )
                     .on("click", (event, d) => vis.showSitePopup(d));
+                makeAnchorOperable(g, (d) => vis.showSitePopup(d));
                 g.append("circle").attr("class", "anchor__approx");
                 g.append("path")
                     .attr("class", "anchor__stroke")
@@ -881,18 +927,31 @@ class MapVis {
                 return g;
             });
 
+        vis.fadedAnchors.attr("aria-label", anchorAccessibleName);
+
         vis.positionByCoordinates(vis.fadedAnchors);
     }
 
-    // Removes any currently-open site popup, if there is one
+    // Removes any currently-open site popup, if there is one.
+    //
+    // Focus goes back to the marker that opened the popup. Without
+    // that, closing with the keyboard drops focus onto the page body
+    // and the reader has to tab in from the top again.
     closeSitePopup() {
         let vis = this;
-        if (vis.activePopup) {
-            vis.activePopup.remove();
-            vis.activePopup = null;
-            vis.activePopupSite = null;
-            vis.updateSelectedHighlight();
-        }
+        if (!vis.activePopup) return;
+
+        let returnTo = vis.popupOpenedFrom;
+
+        vis.activePopup.remove();
+        vis.activePopup = null;
+        vis.activePopupSite = null;
+        vis.popupOpenedFrom = null;
+        vis.updateSelectedHighlight();
+
+        // The marker may have been redrawn or removed while the popup
+        // was open, so check it is still on the page.
+        if (returnTo && document.contains(returnTo)) returnTo.focus();
     }
 
     // Marks whichever site's popup is currently open with
@@ -962,7 +1021,17 @@ class MapVis {
     showSitePopup(feature) {
         let vis = this;
 
+        // Remember the marker that had focus, so the popup can hand
+        // focus back to it when it closes. Read it before
+        // closeSitePopup, which clears the record.
+        let openedFrom = document.activeElement &&
+                document.activeElement.classList &&
+                document.activeElement.classList.contains("anchor")
+            ? document.activeElement
+            : null;
+
         vis.closeSitePopup();
+        vis.popupOpenedFrom = openedFrom;
         vis.activePopupSite = feature.properties.ANCHOR_SiteName;
         vis.updateSelectedHighlight();
 
@@ -995,10 +1064,30 @@ class MapVis {
         // markup, so it isn't picked up by the one-time createIcons()
         // call in index.html) and wire it up
         lucide.createIcons();
-        vis.activePopup
-            .getElement()
+
+        let popupElement = vis.activePopup.getElement();
+        popupElement
             .querySelector(".site-popup__close")
             .addEventListener("click", () => vis.closeSitePopup());
+
+        // The details are a dialog raised by the marker, so name them
+        // with the site name and let Escape close them from anywhere
+        // inside.
+        let content = popupElement.querySelector(".mapboxgl-popup-content");
+        content.setAttribute("role", "dialog");
+        content.setAttribute(
+            "aria-label",
+            `${feature.properties.ANCHOR_SiteName} details`,
+        );
+        content.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") vis.closeSitePopup();
+        });
+
+        // Focus moves into the popup only when the marker was reached
+        // by keyboard. A mouse user who clicks a marker should not have
+        // focus jump, but a keyboard user needs to land on the content
+        // they just opened.
+        if (openedFrom) popupElement.querySelector(".site-popup__close").focus();
 
         let containerHeight = vis.map.getContainer().clientHeight;
         let isMobile = vis.map.getContainer().clientWidth < 1000;
