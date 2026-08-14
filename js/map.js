@@ -1,10 +1,8 @@
 //* MAP.JS *//
 
-// Default map extent: continental US (excludes AK/HI)
-const CONUS_BOUNDS = [
-    [-125.0, 24.396308], // southwest
-    [-66.93457, 49.384358], // northeast
-];
+// Default map extent: continental US (excludes AK/HI). Set in
+// config.js, which is the one file a deployment has to change.
+const CONUS_BOUNDS = ANCHOR_CONFIG.bounds;
 
 // Pointy-top regular hexagon path, centered at the origin, given the
 // center-to-vertex radius (d3-shape has no built-in hexagon symbol type)
@@ -346,10 +344,10 @@ class MapVis {
     initVis() {
         let vis = this;
 
-        // Connect access token
-        // TODO: Swap FL or TLP token
-        mapboxgl.accessToken =
-            "pk.eyJ1IjoibXBraGluZGEiLCJhIjoiY21zMGdtZHF2MHZkYTJ4cTM5c2NubHFyZSJ9.gG5sUYWXM0l2xnKoVZZ8kA";
+        // Account credentials come from config.js — see the TODO there
+        // about moving to a Ferguson Lynch / Landscape Partnership
+        // account before launch.
+        mapboxgl.accessToken = ANCHOR_CONFIG.mapbox.accessToken;
 
         // ANCHOR sites with a recorded location
         vis.features = vis.dataLayerArray[0].features.filter(
@@ -377,8 +375,7 @@ class MapVis {
         // Create new mapbox map
         vis.map = new mapboxgl.Map({
             container: vis.mapParentElement, // container ID
-            // TODO: Swap FL or TLP style link
-            style: "mapbox://styles/mpkhinda/cmqfdz5sa000c01s73elr0usm", // ANCHOR custom basemap style
+            style: ANCHOR_CONFIG.mapbox.style, // ANCHOR custom basemap style
             bounds: CONUS_BOUNDS, // default to the continental US extent
             fitBoundsOptions: { padding: 40 },
             projection: "mercator",
