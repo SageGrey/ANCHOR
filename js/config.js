@@ -24,17 +24,57 @@ const ANCHOR_CONFIG = {
 
     // ---- ANCHOR site data ----
     //
-    // A relative path here reads the bundled file. In production this
-    // becomes the URL of an endpoint that returns the same GeoJSON
-    // shape, so that member records never sit in a public repository.
-    // See plans/data-api.md for what that endpoint must return.
+    // Where the sites come from. Both sources give main.js the same
+    // GeoJSON shape, so nothing else in the dashboard changes with
+    // this value.
+    //
+    //   "arcgis" — query the Survey123 intake form's FeatureServer, so
+    //              the map shows what the form holds right now.
+    //   "file"   — read the bundled snapshot in data/. Use this to work
+    //              offline, or to pin a demo to known data.
+    //
+    // Neither is the production answer. Both send the browser the exact
+    // centre point of every site, private land included, and the
+    // FeatureServer is a public one. See plans/data-api.md for the
+    // endpoint that has to replace this, and plans/location-privacy.md
+    // for why.
     data: {
+        source: "arcgis",
+
+        // ---- source: "arcgis" ----
+        //
+        // A public, query-only view of the Survey123 intake form,
+        // published by the Landscape Partnership. Layer 0 is "survey".
+        //
+        // TODO (production): this URL belongs to whoever published the
+        // view. Confirm with the Landscape Partnership that it is meant
+        // to stay public and stay at this address before launch — the
+        // dashboard now stops working if it moves.
+        arcgis: {
+            featureServerUrl:
+                "https://services6.arcgis.com/FqSZYgvweBKv4NFt/arcgis/rest/services/Public_LIVE_ANCHOR_survey123_IntakeForm/FeatureServer",
+            layerId: 0,
+            pageSize: 1000,
+        },
+
+        // ---- source: "file" ----
         sitesUrl: "data/ANCHOR_sites.geojson",
 
         // Sent with the sites request. A cookie-based session needs
         // "include"; a fully public file needs nothing. Kept here so
         // that switching to a private API does not touch main.js.
         credentials: "same-origin",
+
+        // Ownership per site, keyed by site name. Neither source has an
+        // ownership column: the intake form does not ask. This file is
+        // the prototype's stand-in, written by
+        // scripts/set-ownership.mjs. When the form collects ownership,
+        // delete the file, the script, and this setting.
+        //
+        // A site with no entry here is drawn, reads "Unknown", is left
+        // out of the ownership filters, and — because the map cannot
+        // confirm it is public land — has its position offset.
+        ownershipUrl: "data/ANCHOR_ownership.json",
     },
 
     // ---- Default map extent ----
