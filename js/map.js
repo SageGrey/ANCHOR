@@ -35,6 +35,14 @@ function buildInlineSvgStyles() {
     let value = (name) => root.getPropertyValue(name).trim();
 
     return `
+        .anchor__approx {
+            fill: ${value("--brand-navy")};
+            fill-opacity: 0.08;
+            stroke: ${value("--brand-navy")};
+            stroke-width: 1px;
+            stroke-opacity: 0.35;
+            stroke-dasharray: 3 3;
+        }
         .anchor__fill { fill: ${value("--brand-navy")}; }
         .anchor__stroke {
             fill: none;
@@ -98,6 +106,86 @@ function getOwnership(feature) {
             `Expected one of: ${OWNERSHIP_CLASSES.join(", ")}.`,
     );
     return null;
+}
+
+//* LOCATION PRIVACY *//
+//
+// Public land is shown where it is. The public already knows where a
+// Corps of Engineers reservoir or an Army depot is, and an exact point
+// is what makes the map useful.
+//
+// Every other site is moved. Private landowners did not agree to have
+// their parcel published, and a non-profit preserve can hold the same
+// risk when the land is not open to visitors. So the rule is: show the
+// exact point only when the class is "public".
+//
+// A site with no class is also moved. An unknown owner is treated as
+// private until somebody confirms otherwise.
+function isLocationApproximate(feature) {
+    if (feature.properties.ANCHOR_LocationApproximate === true) return true;
+    return getOwnership(feature) !== "public";
+}
+
+// Where to draw the site.
+//
+// ANCHOR_LocationApproximate means the data arrived already offset —
+// see jitter.js and scripts/jitter-locations.mjs. In that case the
+// coordinates are used as they are. Offsetting them a second time
+// would move the site outside the circle the map draws around it, and
+// the circle is the promise that the true point is inside.
+//
+// statePolygons is optional. When it is given, the offset point must
+// fall in the same state as the true point. Several ANCHOR sites sit
+// within the offset radius of a state line — Guthrie Wet Prairie is
+// about 1 km south of the Kentucky line — and the dashboard counts and
+// outlines states, so a marker on the wrong side would contradict its
+// own footer. The map has no boundaries at first paint, so it draws
+// once without the test and again once they arrive.
+function displayCoordinates(feature, statePolygons) {
+    const coordinates = feature.geometry.coordinates;
+    if (feature.properties.ANCHOR_LocationApproximate === true) {
+        return coordinates;
+    }
+    if (!isLocationApproximate(feature)) return coordinates;
+
+    const name = feature.properties.ANCHOR_SiteName;
+    const trueState = statePolygons
+        ? statePolygons.find((state) => d3.geoContains(state, coordinates))
+        : null;
+
+    try {
+        return jitterCoordinates(coordinates, name, {
+            isAllowed: trueState
+                ? (candidate) => d3.geoContains(trueState, candidate)
+                : null,
+        });
+    } catch (err) {
+        // No position inside the state was found. Privacy comes first,
+        // so keep the offset and give up the state test.
+        console.warn(
+            `Could not keep "${name}" inside its state after the privacy ` +
+                `offset. Showing it offset anyway. ${err.message}`,
+        );
+        return jitterCoordinates(coordinates, name);
+    }
+}
+
+// A parallel set of features that carry the shown position. The
+// properties object is shared with the true feature, not copied, so a
+// filter gives the same answer against either set.
+//
+// Everything the reader sees is built from these. Everything counted —
+// the acreage and site totals, and which states get an outline — is
+// built from the true features. The offset must not change a number.
+function toDisplayFeatures(features, statePolygons) {
+    return features.map((feature) => ({
+        type: "Feature",
+        properties: feature.properties,
+        geometry: {
+            type: "Point",
+            coordinates: displayCoordinates(feature, statePolygons),
+        },
+    }));
 }
 
 // A site "has" a land cover type if its EstAcres column is a positive
@@ -221,6 +309,7 @@ function describeSite(feature) {
         acresTotal: typeof acresTotal === "number" && acresTotal > 0
             ? acresTotal
             : null,
+        approximate: isLocationApproximate(feature),
         landCover,
         practices,
     };
@@ -266,6 +355,14 @@ function siteInfoHTML(feature) {
             <i data-lucide="x"></i>
         </button>
         <h2 class="site-popup__title">${info.name}</h2>
+        ${
+        info.approximate
+            ? `<p class="site-popup__approx">
+                    Approximate location. Exact location not shown for
+                    privacy.
+                </p>`
+            : ""
+    }
         <p class="site-popup__label">Ownership</p>
         <p class="site-popup__field">
             ${OWNERSHIP_LABELS[info.ownership] || "Unknown"}
@@ -333,14 +430,21 @@ class MapVis {
         // account before launch.
         mapboxgl.accessToken = ANCHOR_CONFIG.mapbox.accessToken;
 
-        // ANCHOR sites with a recorded location
+        // ANCHOR sites with a recorded location. These keep the true
+        // coordinates. Use them for every count and for the state
+        // outlines, never to draw a marker.
         vis.features = vis.dataLayerArray[0].features.filter(
             (d) => d.geometry,
         );
 
+        // The same sites at the position the reader sees. Private and
+        // non-profit sites are offset here; public sites are not.
+        vis.displayFeatures = toDisplayFeatures(vis.features);
+
         // No active filters yet: everything matches
         vis.matchingFeatures = vis.features;
-        vis.nonMatchingFeatures = [];
+        vis.displayMatching = vis.displayFeatures;
+        vis.displayNonMatching = [];
         vis.activeFilters = { owner: [], landcover: [], practices: [] };
 
         // Update which filters are active and re-render whenever a
@@ -424,8 +528,10 @@ class MapVis {
 
         // Build the spatial cluster index from the currently-matching
         // ANCHOR features (everything matches, until a filter is applied)
+        // Clusters are built from the shown positions, so a cluster
+        // sits where its markers are drawn.
         vis.clusterIndex = new Supercluster({ radius: 50, maxZoom: 16 }).load(
-            vis.matchingFeatures,
+            vis.displayMatching,
         );
 
         // Recompute clusters, and re-check the faded sites' zoom
@@ -446,11 +552,30 @@ class MapVis {
             .then(({ topo, statePolygons }) => {
                 vis.stateTopo = topo;
                 vis.statePolygons = statePolygons;
+
+                // Now that the boundaries are here, work out the shown
+                // positions again with the state test applied. The
+                // first pass had no boundaries to test against, so a
+                // site near a line could have landed on the wrong side.
+                vis.rebuildDisplayFeatures();
                 vis.updateStateLayer(vis.matchingFeatures);
             })
             .catch((err) => {
                 console.error("State boundary load/resolve failed:", err);
             });
+    }
+
+    // Works out every shown position again and redraws. Called once,
+    // when the state boundaries arrive, so that the privacy offset can
+    // be held inside each site's own state.
+    rebuildDisplayFeatures() {
+        let vis = this;
+
+        vis.displayFeatures = toDisplayFeatures(vis.features, vis.statePolygons);
+
+        // applyFilters rebuilds displayMatching, displayNonMatching and
+        // the cluster index from the new positions, then redraws.
+        vis.applyFilters();
     }
 
     // Recompute which states contain the given features, redraw the
@@ -503,19 +628,24 @@ class MapVis {
             vis.activeFilters.landcover.length > 0 ||
             vis.activeFilters.practices.length > 0;
 
+        let matches = (f) => siteMatchesFilters(f, vis.activeFilters);
+
+        // True positions, for the counts and the state outlines.
         vis.matchingFeatures = hasActiveFilters
-            ? vis.features.filter((f) =>
-                  siteMatchesFilters(f, vis.activeFilters),
-              )
+            ? vis.features.filter(matches)
             : vis.features;
-        vis.nonMatchingFeatures = hasActiveFilters
-            ? vis.features.filter(
-                  (f) => !siteMatchesFilters(f, vis.activeFilters),
-              )
+
+        // Shown positions, for the markers. The two sets stay in step
+        // because they share one properties object per site.
+        vis.displayMatching = hasActiveFilters
+            ? vis.displayFeatures.filter(matches)
+            : vis.displayFeatures;
+        vis.displayNonMatching = hasActiveFilters
+            ? vis.displayFeatures.filter((f) => !matches(f))
             : [];
 
         vis.clusterIndex = new Supercluster({ radius: 50, maxZoom: 16 }).load(
-            vis.matchingFeatures,
+            vis.displayMatching,
         );
 
         vis.renderClusters();
@@ -549,15 +679,17 @@ class MapVis {
         let vis = this;
 
         let savedMatching = vis.matchingFeatures;
-        let savedNonMatching = vis.nonMatchingFeatures;
+        let savedDisplayMatching = vis.displayMatching;
+        let savedDisplayNonMatching = vis.displayNonMatching;
         let savedClusterIndex = vis.clusterIndex;
 
         vis.matchingFeatures = vis.features;
-        vis.nonMatchingFeatures = [];
+        vis.displayMatching = vis.displayFeatures;
+        vis.displayNonMatching = [];
         vis.clusterIndex = new Supercluster({
             radius: 50,
             maxZoom: 16,
-        }).load(vis.features);
+        }).load(vis.displayFeatures);
         vis.renderClusters();
         vis.renderFadedSites();
 
@@ -578,7 +710,8 @@ class MapVis {
         let markup = new XMLSerializer().serializeToString(svgNode);
 
         vis.matchingFeatures = savedMatching;
-        vis.nonMatchingFeatures = savedNonMatching;
+        vis.displayMatching = savedDisplayMatching;
+        vis.displayNonMatching = savedDisplayNonMatching;
         vis.clusterIndex = savedClusterIndex;
         vis.renderClusters();
         vis.renderFadedSites();
@@ -644,6 +777,8 @@ class MapVis {
                             ? vis.zoomToCluster(d)
                             : vis.showSitePopup(d),
                     );
+                // First child, so the hexagon paints on top of it.
+                g.append("circle").attr("class", "anchor__approx");
                 g.append("path").attr("class", "anchor__stroke");
                 g.append("path").attr("class", "anchor__fill");
                 g.append("text").attr("class", "anchor__count");
@@ -678,7 +813,7 @@ class MapVis {
         let showFaded =
             vis.matchingFeatures.length > 0 &&
             vis.map.getZoom() >= FADED_MIN_ZOOM;
-        let visibleFeatures = showFaded ? vis.nonMatchingFeatures : [];
+        let visibleFeatures = showFaded ? vis.displayNonMatching : [];
 
         vis.fadedAnchors = vis.anchorsGroup
             .selectAll(".anchor--faded")
@@ -692,6 +827,7 @@ class MapVis {
                         (d) => d.properties.ANCHOR_SiteName,
                     )
                     .on("click", (event, d) => vis.showSitePopup(d));
+                g.append("circle").attr("class", "anchor__approx");
                 g.append("path")
                     .attr("class", "anchor__stroke")
                     .attr(
@@ -886,11 +1022,55 @@ class MapVis {
         });
     }
 
+    // Screen pixels for a distance on the ground, at the current zoom
+    // and the given latitude. Standard Web Mercator: one pixel covers
+    // less ground as you zoom in, and less again as you move away from
+    // the equator.
+    groundMetresToPixels(metres, latitude) {
+        let vis = this;
+        let metresPerPixel = (156543.03392 *
+            Math.cos((latitude * Math.PI) / 180)) /
+            Math.pow(2, vis.map.getZoom());
+        return metres / metresPerPixel;
+    }
+
+    // Sizes the circle that says "the site is somewhere in here".
+    //
+    // The offset moves a site by up to JITTER_RADIUS_M, and the circle
+    // has that same radius around the shown point. The true point is
+    // therefore always inside the circle.
+    //
+    // Rules:
+    //   - Exact sites get no circle.
+    //   - Clusters get no circle. A cluster can hold both exact and
+    //     offset sites, so one circle around it would state something
+    //     the map cannot support.
+    //   - A circle smaller than the marker is dropped. At continental
+    //     zoom 750 m is well under one pixel, and a faint dot under
+    //     each hexagon reads as a rendering fault, not as a message.
+    sizeApproximateCircles(selection) {
+        let vis = this;
+        let minRadius = POINT_RADIUS + CLUSTER_STROKE_OFFSET;
+
+        selection.select(".anchor__approx").attr("r", function (d) {
+            if (d.properties.cluster || !isLocationApproximate(d)) return 0;
+            let radius = vis.groundMetresToPixels(
+                JITTER_RADIUS_M,
+                d.geometry.coordinates[1],
+            );
+            return radius < minRadius ? 0 : radius;
+        });
+    }
+
     moveVis() {
         let vis = this;
 
         vis.positionByCoordinates(vis.anchors);
-        if (vis.fadedAnchors) vis.positionByCoordinates(vis.fadedAnchors);
+        vis.sizeApproximateCircles(vis.anchors);
+        if (vis.fadedAnchors) {
+            vis.positionByCoordinates(vis.fadedAnchors);
+            vis.sizeApproximateCircles(vis.fadedAnchors);
+        }
 
         if (vis.stateFill) {
             vis.stateFill.attr("d", vis.path);
