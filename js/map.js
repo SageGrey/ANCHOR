@@ -565,6 +565,47 @@ class MapVis {
             });
     }
 
+    // Draws or removes one reference layer from js/layers.js.
+    //
+    // The layer goes on top of the basemap. The ANCHOR markers are not
+    // in the basemap — they are an SVG element above the map canvas —
+    // so they stay visible whatever is turned on here.
+    //
+    // Mapbox rejects a layer added before the style has loaded, and the
+    // reader can reach the panel before that happens, so the work waits
+    // for the style when it has to.
+    setOverlayLayer(layerId, isOn) {
+        let vis = this;
+
+        if (!vis.map.isStyleLoaded()) {
+            vis.map.once("styledata", () => vis.setOverlayLayer(layerId, isOn));
+            return;
+        }
+
+        let layer = MAP_LAYERS.find((entry) => entry.id === layerId);
+        if (!layer || !layer.source) return;
+
+        let mapId = `overlay-${layerId}`;
+
+        if (!isOn) {
+            if (vis.map.getLayer(mapId)) vis.map.removeLayer(mapId);
+            if (vis.map.getSource(mapId)) vis.map.removeSource(mapId);
+            return;
+        }
+
+        if (vis.map.getLayer(mapId)) return;
+
+        vis.map.addSource(mapId, layer.source);
+        vis.map.addLayer({
+            id: mapId,
+            type: "raster",
+            source: mapId,
+            paint: {
+                "raster-opacity": layer.opacity == null ? 1 : layer.opacity,
+            },
+        });
+    }
+
     // Works out every shown position again and redraws. Called once,
     // when the state boundaries arrive, so that the privacy offset can
     // be held inside each site's own state.

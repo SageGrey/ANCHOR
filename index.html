@@ -223,24 +223,9 @@
                             >
                                 Clear
                             </button>
-                            <label class="filter-group__option">
-                                <input type="checkbox" value="nlcd-landcover">
-                                NLCD Land Cover
-                            </label>
-                            <label class="filter-group__option">
-                                <input
-                                    type="checkbox"
-                                    value="protected-areas"
-                                >
-                                Protected Areas
-                            </label>
-                            <label class="filter-group__option">
-                                <input
-                                    type="checkbox"
-                                    value="critical-habitat"
-                                >
-                                Critical Habitat
-                            </label>
+                            <!-- The options are built by
+                                 initLayersPanel in main.js, one per
+                                 connected layer in js/layers.js. -->
                         </div>
                     </div>
                 </div>
@@ -530,6 +515,7 @@
         <!-- config.js first: the scripts below read ANCHOR_CONFIG as they load -->
         <script src="js/config.js"></script>
         <script src="js/jitter.js"></script>
+        <script src="js/layers.js"></script>
         <script src="js/main.js"></script>
         <script src="js/map.js"></script>
         <script src="js/export.js"></script>
