@@ -72,48 +72,32 @@ const LANDCOVER_PREFIXES = [
     "CroplandwCP",
 ];
 
-// Ownership classification — the data has no clean "who owns this
-// site" field. AgencyOrPartner_FillingForm/ManagingPartner are free-text
-// org names, and ManagingPartner is often a conservation nonprofit
-// (e.g. Southeastern Grasslands Institute) assisting a private
-// landowner, not the actual owner. Classified by hand from those two
-// fields — a best guess pending client review (see plan doc for the
-// full table with confidence notes). Keyed by trimmed ANCHOR_SiteName.
-const SITE_OWNERSHIP = {
-    "MOTSU": "public",
-    "Bobwhite Quail Focus Area": "public",
-    "Melvern Lake": "public",
-    "Tipover and North Coves": "public",
-    "North Shore": "public",
-    "Melrose Air Force Range": "public",
-    "Rathbun Lake": "public",
-    "Stockton Lake (Masters and Hawker Point South)": "public",
-    "Wilson Lake Admin Grazing": "public",
-    "Kanopolis Lake": "public",
-    "Spring Creek Prairie": "non-profit",
-    "Dunbar Cave Prairie": "public",
-    "Guthrie Wet Prairie": "non-profit",
-    "Barnett Woods and Prairie State Natural Area": "non-profit",
-    "Cornelia Fort": "public",
-    "King Savanna": "private",
-    "Morgan Farm": "private",
-    "Best Hope Farm": "private",
-    "Kansas Hills": "private",
-    "Van Hook Savanna": "private",
-    "Lytle Bend Meadow": "public",
-    "Old Town Meadow": "private", // low confidence — ambiguous org name
-    "Bask": "private", // medium confidence — could be nonprofit
-    "Lambrecht": "private",
-    "Eagleville Wet Prairie": "non-profit",
-    "Penn Prairie": "non-profit", // medium confidence — private university
-    "Eyheralde Savanna": "private",
-    "Arnold Prairie": "private",
-    "Frog Valley": "private",
-};
+// The three ownership classes the dashboard knows. Any other value in
+// the data is a mistake and gets reported (see getOwnership).
+const OWNERSHIP_CLASSES = ["public", "private", "non-profit"];
 
+// Ownership comes from the data, not from this file. The prototype
+// classified sites here in JavaScript; that table now lives in
+// scripts/set-ownership.mjs, which writes ANCHOR_Ownership into the
+// GeoJSON. In production the ANCHOR intake form must collect the class
+// directly, and the script goes away.
+//
+// The map treats this field as authoritative. It does not guess. A
+// site with no class is drawn, but it is excluded from every ownership
+// filter and shows "Unknown" in its details.
 function getOwnership(feature) {
-    let name = (feature.properties.ANCHOR_SiteName || "").trim();
-    return SITE_OWNERSHIP[name] || null;
+    let value = feature.properties.ANCHOR_Ownership;
+    if (value == null) return null;
+
+    value = String(value).trim().toLowerCase();
+    if (OWNERSHIP_CLASSES.includes(value)) return value;
+
+    console.warn(
+        `Unknown ANCHOR_Ownership "${feature.properties.ANCHOR_Ownership}" ` +
+            `on site "${feature.properties.ANCHOR_SiteName}". ` +
+            `Expected one of: ${OWNERSHIP_CLASSES.join(", ")}.`,
+    );
+    return null;
 }
 
 // A site "has" a land cover type if its EstAcres column is a positive
