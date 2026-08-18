@@ -3,8 +3,14 @@
 let myMapVis;
 
 // dataLayerArray[0] — this index is relied on directly in map.js and export.js
+//
+// The URL is set in config.js. It is a bundled file today and becomes
+// a private endpoint in production; d3.json passes the fetch options
+// straight through, so a session-cookie API needs no change here.
 let promises = [
-    d3.json("data/ANCHOR_sites.geojson"),
+    d3.json(ANCHOR_CONFIG.data.sitesUrl, {
+        credentials: ANCHOR_CONFIG.data.credentials,
+    }),
 ];
 
 Promise.all(promises)
