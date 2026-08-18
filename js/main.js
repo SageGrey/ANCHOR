@@ -432,19 +432,52 @@ document.addEventListener("DOMContentLoaded", () => {
 // Same hidden-attribute open/close pattern as the header filter
 // dropdowns, since it's styled to match them exactly.
 function initLayersPanel() {
+    const container = document.querySelector(".layers-toggle");
     const toggle = document.getElementById("toggle-layers-btn");
     const panel = document.getElementById("layers-panel");
     const clearBtn = document.getElementById("clear-layers-btn");
+
+    // Build one option per layer that has a source (see js/layers.js).
+    // A layer with no source is not offered, and if that leaves no
+    // options at all the whole control goes away. A button that does
+    // nothing is worse than no button.
+    const layers = availableMapLayers();
+
+    if (layers.length === 0) {
+        container.hidden = true;
+        return;
+    }
+
+    layers.forEach((layer) => {
+        const option = document.createElement("label");
+        option.className = "filter-group__option";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = layer.id;
+
+        checkbox.addEventListener("change", () => {
+            if (myMapVis) myMapVis.setOverlayLayer(layer.id, checkbox.checked);
+        });
+
+        option.append(checkbox, ` ${layer.label}`);
+        panel.append(option);
+    });
 
     function closePanel() {
         panel.hidden = true;
         toggle.setAttribute("aria-expanded", "false");
     }
 
+    // Clearing has to turn the layers off as well, not only clear the
+    // boxes. Setting `checked` in script does not raise a change event.
     clearBtn.addEventListener("click", () => {
         panel
             .querySelectorAll('input[type="checkbox"]')
             .forEach((checkbox) => {
+                if (checkbox.checked && myMapVis) {
+                    myMapVis.setOverlayLayer(checkbox.value, false);
+                }
                 checkbox.checked = false;
             });
     });
