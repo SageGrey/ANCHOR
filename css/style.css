@@ -442,6 +442,14 @@ a:hover {
     font-style: italic;
 }
 
+/* The figure itself, set against the plain "acres" unit beside it —
+   same value/label pairing the footer stat tiles use. */
+.site-popup__acres {
+    font: var(--utility);
+    font-weight: 700;
+    color: var(--blue-900);
+}
+
 .site-popup__chart {
     display: flex;
     width: 180px;
