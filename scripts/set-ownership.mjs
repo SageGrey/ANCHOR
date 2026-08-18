@@ -29,6 +29,17 @@ const DATA_PATH = path.join(
     "ANCHOR_sites.geojson",
 );
 
+// The same classes, keyed by site name, for a source that has no
+// ownership column of its own. The ArcGIS intake form is one: it does
+// not ask who owns the site, so the dashboard reads this file instead.
+// See js/config.js (data.ownershipUrl) and plans/ownership-data.md.
+const OWNERSHIP_PATH = path.join(
+    import.meta.dirname,
+    "..",
+    "data",
+    "ANCHOR_ownership.json",
+);
+
 // Keyed by the trimmed ANCHOR_SiteName.
 //   class      — "public" | "private" | "non-profit"
 //   confidence — "high" | "medium" | "low"
@@ -224,7 +235,24 @@ for (const feature of data.features) {
 
 fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2) + "\n");
 
+// The side file carries the basis note as well. The dashboard ignores
+// it, but it is the reason each class was chosen, and it has to travel
+// with the class rather than sit only in this script.
+const bySite = {};
+for (const [name, entry] of Object.entries(OWNERSHIP)) {
+    bySite[name] = {
+        ownership: entry.class,
+        confidence: entry.confidence,
+        basis: entry.basis,
+    };
+}
+fs.writeFileSync(OWNERSHIP_PATH, JSON.stringify(bySite, null, 2) + "\n");
+
 console.log(`Wrote ANCHOR_Ownership for ${written} sites.`);
+console.log(
+    `Wrote ${Object.keys(bySite).length} entries to ` +
+        path.relative(process.cwd(), OWNERSHIP_PATH) + ".",
+);
 
 const byConfidence = { high: 0, medium: 0, low: 0 };
 for (const entry of Object.values(OWNERSHIP)) byConfidence[entry.confidence] += 1;

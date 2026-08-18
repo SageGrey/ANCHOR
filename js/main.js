@@ -3,15 +3,7 @@
 let myMapVis;
 
 // dataLayerArray[0] — this index is relied on directly in map.js and export.js
-//
-// The URL is set in config.js. It is a bundled file today and becomes
-// a private endpoint in production; d3.json passes the fetch options
-// straight through, so a session-cookie API needs no change here.
-let promises = [
-    d3.json(ANCHOR_CONFIG.data.sitesUrl, {
-        credentials: ANCHOR_CONFIG.data.credentials,
-    }),
-];
+let promises = [loadSites()];
 
 Promise.all(promises)
     .then(function (data) {
@@ -20,6 +12,78 @@ Promise.all(promises)
     .catch(function (err) {
         console.error(err);
     });
+
+// Reads the sites from whichever source config.js names and returns one
+// GeoJSON FeatureCollection either way. Everything downstream — map.js,
+// export.js — sees the same shape from both.
+async function loadSites() {
+    const settings = ANCHOR_CONFIG.data;
+
+    const sites = settings.source === "arcgis"
+        ? await fetchArcgisSites(settings.arcgis)
+        : await d3.json(settings.sitesUrl, {
+            credentials: settings.credentials,
+        });
+
+    await applyOwnership(sites, settings.ownershipUrl);
+    return sites;
+}
+
+// Fills in ANCHOR_Ownership from the side file named in config.js.
+//
+// The dashboard does not classify sites — see the note above
+// getOwnership in map.js — and neither does this function. It copies a
+// recorded class onto a feature that has no class yet, and it never
+// overwrites one that arrived with the data. So a source that grows an
+// ownership column of its own takes over on that day with no code
+// change, and the side file becomes dead weight that can be deleted.
+async function applyOwnership(sites, ownershipUrl) {
+    if (!ownershipUrl) return;
+
+    let bySite;
+    try {
+        const response = await fetch(ownershipUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        bySite = await response.json();
+    } catch (err) {
+        // A missing side file is not fatal. Every site then reads
+        // "Unknown" and every site is offset, which is the safe way to
+        // fail: it shows less and hides more.
+        console.warn(
+            `Could not read ownership from ${ownershipUrl}. Every site ` +
+                `will read "Unknown" and be drawn at an offset position.`,
+            err,
+        );
+        return;
+    }
+
+    const unmatched = [];
+
+    for (const feature of sites.features) {
+        if (feature.properties.ANCHOR_Ownership != null) continue;
+
+        const name = String(feature.properties.ANCHOR_SiteName || "").trim();
+        const entry = bySite[name];
+
+        if (!entry) {
+            // A record with no location never reaches the map, so it
+            // needs no class and is not worth reporting.
+            if (feature.geometry) unmatched.push(name);
+            continue;
+        }
+
+        feature.properties.ANCHOR_Ownership = entry.ownership;
+        feature.properties.ANCHOR_OwnershipConfidence = entry.confidence;
+    }
+
+    if (unmatched.length > 0) {
+        console.warn(
+            `No recorded ownership for ${unmatched.length} site(s). They ` +
+                `read "Unknown" and are drawn at an offset position:\n  ` +
+                unmatched.join("\n  "),
+        );
+    }
+}
 
 // Shared pub/sub bus — main.js and map.js both bind/trigger events on this
 let eventHandler = {
