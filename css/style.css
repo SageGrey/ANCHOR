@@ -359,6 +359,31 @@ a:hover {
     pointer-events: none;
 }
 
+/* Shows how far the true location can be from the marker. Drawn only
+   on sites whose position is offset for privacy — see the LOCATION
+   PRIVACY block in map.js. The fill is deliberately weak: the circle
+   has to read as an area of uncertainty, not as a boundary. */
+.anchor__approx {
+    fill: var(--brand-navy);
+    fill-opacity: 0.08;
+    stroke: var(--brand-navy);
+    stroke-width: 1px;
+    stroke-opacity: 0.35;
+    stroke-dasharray: 3 3;
+    pointer-events: none;
+}
+
+.anchor--faded .anchor__approx {
+    fill: var(--grey-400);
+    stroke: var(--grey-400);
+}
+
+.anchor--selected .anchor__approx {
+    fill: var(--blue-700);
+    stroke: var(--blue-700);
+    stroke-opacity: 0.6;
+}
+
 .anchor--faded .anchor__fill {
     fill: var(--grey-400);
 }
@@ -418,6 +443,20 @@ a:hover {
     font: var(--header-5);
     color: var(--blue-700);
     margin: 0 24px 8px 0;
+}
+
+/* Tells the reader that the marker is not the site. Sits directly
+   under the title, before any field, because it qualifies all of them. */
+.site-popup__approx {
+    display: flex;
+    gap: 6px;
+    margin: 0 0 10px;
+    padding: 6px 8px;
+    font: var(--caption);
+    color: var(--blue-900);
+    background: var(--blue-100);
+    border-left: 3px solid var(--blue-700);
+    border-radius: 0 var(--radius) var(--radius) 0;
 }
 
 .site-popup__label {
