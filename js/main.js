@@ -3,9 +3,7 @@
 let myMapVis;
 
 // dataLayerArray[0] — this index is relied on directly in map.js and export.js
-let promises = [
-    d3.json("data/ANCHOR_sites.geojson"),
-];
+let promises = [loadSites()];
 
 Promise.all(promises)
     .then(function (data) {
@@ -14,6 +12,78 @@ Promise.all(promises)
     .catch(function (err) {
         console.error(err);
     });
+
+// Reads the sites from whichever source config.js names and returns one
+// GeoJSON FeatureCollection either way. Everything downstream — map.js,
+// export.js — sees the same shape from both.
+async function loadSites() {
+    const settings = ANCHOR_CONFIG.data;
+
+    const sites = settings.source === "arcgis"
+        ? await fetchArcgisSites(settings.arcgis)
+        : await d3.json(settings.sitesUrl, {
+            credentials: settings.credentials,
+        });
+
+    await applyOwnership(sites, settings.ownershipUrl);
+    return sites;
+}
+
+// Fills in ANCHOR_Ownership from the side file named in config.js.
+//
+// The dashboard does not classify sites — see the note above
+// getOwnership in map.js — and neither does this function. It copies a
+// recorded class onto a feature that has no class yet, and it never
+// overwrites one that arrived with the data. So a source that grows an
+// ownership column of its own takes over on that day with no code
+// change, and the side file becomes dead weight that can be deleted.
+async function applyOwnership(sites, ownershipUrl) {
+    if (!ownershipUrl) return;
+
+    let bySite;
+    try {
+        const response = await fetch(ownershipUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        bySite = await response.json();
+    } catch (err) {
+        // A missing side file is not fatal. Every site then reads
+        // "Unknown" and every site is offset, which is the safe way to
+        // fail: it shows less and hides more.
+        console.warn(
+            `Could not read ownership from ${ownershipUrl}. Every site ` +
+                `will read "Unknown" and be drawn at an offset position.`,
+            err,
+        );
+        return;
+    }
+
+    const unmatched = [];
+
+    for (const feature of sites.features) {
+        if (feature.properties.ANCHOR_Ownership != null) continue;
+
+        const name = String(feature.properties.ANCHOR_SiteName || "").trim();
+        const entry = bySite[name];
+
+        if (!entry) {
+            // A record with no location never reaches the map, so it
+            // needs no class and is not worth reporting.
+            if (feature.geometry) unmatched.push(name);
+            continue;
+        }
+
+        feature.properties.ANCHOR_Ownership = entry.ownership;
+        feature.properties.ANCHOR_OwnershipConfidence = entry.confidence;
+    }
+
+    if (unmatched.length > 0) {
+        console.warn(
+            `No recorded ownership for ${unmatched.length} site(s). They ` +
+                `read "Unknown" and are drawn at an offset position:\n  ` +
+                unmatched.join("\n  "),
+        );
+    }
+}
 
 // Shared pub/sub bus — main.js and map.js both bind/trigger events on this
 let eventHandler = {
@@ -31,7 +101,12 @@ let eventHandler = {
 
 function initMainPage(dataArray) {
     myMapVis = new MapVis("map-vis", dataArray, eventHandler);
-    updateFooterStats(dataArray[0].features);
+
+    // Count the sites the map can actually show, which is what MapVis
+    // reports from here on. The raw array also holds records with no
+    // location. Counting those at load and dropping them at the first
+    // filter change made the total fall on its own and never come back.
+    updateFooterStats(myMapVis.features);
 }
 
 // Populate and update the footer stat tiles
@@ -63,7 +138,27 @@ eventHandler.bind("statesResolved", function (event) {
 // actually shown (at full opacity) on the map.
 eventHandler.bind("filteredFeaturesChanged", function (event) {
     updateFooterStats(event.detail.features);
+    announceFilterResult(event.detail.features.length);
 });
+
+// Says out loud what a filter change did.
+//
+// The map and the stat tiles both show the result, and neither reaches
+// a person using a screen reader: the map is a canvas, and a number
+// that changes on screen raises no event. This writes the result into
+// a live region, which is read out as soon as it changes.
+//
+// Zero matches matters most. On screen an empty map is obvious. With
+// no announcement it is silence, which reads as "nothing happened".
+function announceFilterResult(count) {
+    const status = document.getElementById("filter-status");
+    if (!status) return;
+
+    status.textContent = count === 0
+        ? "No ANCHOR sites match the selected filters."
+        : `${count} ANCHOR site${count === 1 ? "" : "s"} match ` +
+            `the selected filters.`;
+}
 
 //* HEADER FILTER DROPDOWNS *//
 //
@@ -421,19 +516,52 @@ document.addEventListener("DOMContentLoaded", () => {
 // Same hidden-attribute open/close pattern as the header filter
 // dropdowns, since it's styled to match them exactly.
 function initLayersPanel() {
+    const container = document.querySelector(".layers-toggle");
     const toggle = document.getElementById("toggle-layers-btn");
     const panel = document.getElementById("layers-panel");
     const clearBtn = document.getElementById("clear-layers-btn");
+
+    // Build one option per layer that has a source (see js/layers.js).
+    // A layer with no source is not offered, and if that leaves no
+    // options at all the whole control goes away. A button that does
+    // nothing is worse than no button.
+    const layers = availableMapLayers();
+
+    if (layers.length === 0) {
+        container.hidden = true;
+        return;
+    }
+
+    layers.forEach((layer) => {
+        const option = document.createElement("label");
+        option.className = "filter-group__option";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = layer.id;
+
+        checkbox.addEventListener("change", () => {
+            if (myMapVis) myMapVis.setOverlayLayer(layer.id, checkbox.checked);
+        });
+
+        option.append(checkbox, ` ${layer.label}`);
+        panel.append(option);
+    });
 
     function closePanel() {
         panel.hidden = true;
         toggle.setAttribute("aria-expanded", "false");
     }
 
+    // Clearing has to turn the layers off as well, not only clear the
+    // boxes. Setting `checked` in script does not raise a change event.
     clearBtn.addEventListener("click", () => {
         panel
             .querySelectorAll('input[type="checkbox"]')
             .forEach((checkbox) => {
+                if (checkbox.checked && myMapVis) {
+                    myMapVis.setOverlayLayer(checkbox.value, false);
+                }
                 checkbox.checked = false;
             });
     });

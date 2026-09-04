@@ -1,0 +1,147 @@
+{
+  "MOTSU": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "Military Ocean Terminal Sunny Point, US Army. Brunswick County NC."
+  },
+  "Bobwhite Quail Focus Area": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "Letterkenny Army Depot, Franklin County PA. The PA Game Commission manages about 2,700 acres of quail habitat there. The record says 2,951 acres, which agrees."
+  },
+  "Melvern Lake": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "US Army Corps of Engineers reservoir. Osage County KS."
+  },
+  "Tipover and North Coves": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "Harlan County Lake, US Army Corps of Engineers. Harlan County NE."
+  },
+  "North Shore": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "Harlan County Lake, US Army Corps of Engineers. Harlan County NE."
+  },
+  "Melrose Air Force Range": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "US Air Force range. Roosevelt County NM."
+  },
+  "Rathbun Lake": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "US Army Corps of Engineers reservoir. Appanoose County IA."
+  },
+  "Stockton Lake (Masters and Hawker Point South)": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "US Army Corps of Engineers reservoir. Cedar County MO."
+  },
+  "Wilson Lake Admin Grazing": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "US Army Corps of Engineers reservoir. Lincoln County KS."
+  },
+  "Kanopolis Lake": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "US Army Corps of Engineers reservoir. Ellsworth County KS."
+  },
+  "Dunbar Cave Prairie": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "Dunbar Cave State Park, Tennessee State Parks. Montgomery County TN."
+  },
+  "Barnett Woods and Prairie State Natural Area": {
+    "ownership": "public",
+    "confidence": "high",
+    "basis": "Barnett's Woods State Natural Area, Montgomery County TN. The Nature Conservancy bought it in 1981 and transferred it to the State of Tennessee in 2005. This entry was 'non-profit' in the prototype, which was wrong. NOTE: the natural area is 40 acres but the record says 455 acres, so the ANCHOR site probably includes adjacent land that the state does not own. Confirm with the data owners."
+  },
+  "Cornelia Fort": {
+    "ownership": "public",
+    "confidence": "medium",
+    "basis": "Cornelia Fort Airpark, Davidson County TN. Metro Nashville Parks holds the land next to Shelby Bottoms Greenway."
+  },
+  "Penn Prairie": {
+    "ownership": "non-profit",
+    "confidence": "medium",
+    "basis": "Mahaska County IA, next to Oskaloosa. Probably land of William Penn University, a private non-profit university. Confirm."
+  },
+  "Spring Creek Prairie": {
+    "ownership": "non-profit",
+    "confidence": "low",
+    "basis": "Montgomery County TN. No public record of a Tennessee site with this name. The name is the same as the Audubon Spring Creek Prairie in Nebraska, which is a different place. Confirm the name and the owner."
+  },
+  "Guthrie Wet Prairie": {
+    "ownership": "non-profit",
+    "confidence": "low",
+    "basis": "Montgomery County TN, south of Guthrie KY. The site is in Tennessee, not Kentucky. Owner not confirmed."
+  },
+  "Eagleville Wet Prairie": {
+    "ownership": "non-profit",
+    "confidence": "low",
+    "basis": "Rutherford County TN. Owner not confirmed."
+  },
+  "King Savanna": {
+    "ownership": "private",
+    "confidence": "medium",
+    "basis": "Dickson County TN. Southeastern Grasslands Institute assists here."
+  },
+  "Morgan Farm": {
+    "ownership": "private",
+    "confidence": "medium",
+    "basis": "Dickson County TN. 'Farm' in the name indicates private land."
+  },
+  "Best Hope Farm": {
+    "ownership": "private",
+    "confidence": "medium",
+    "basis": "Dickson County TN. 'Farm' in the name indicates private land."
+  },
+  "Lambrecht": {
+    "ownership": "private",
+    "confidence": "medium",
+    "basis": "Wilson County TN. The name appears to be a landowner surname."
+  },
+  "Eyheralde Savanna": {
+    "ownership": "private",
+    "confidence": "medium",
+    "basis": "Lucas County IA. The name appears to be a landowner surname."
+  },
+  "Kansas Hills": {
+    "ownership": "private",
+    "confidence": "low",
+    "basis": "Robertson County TN, near the Kansas community. Not in Kansas. Owner not confirmed."
+  },
+  "Van Hook Savanna": {
+    "ownership": "private",
+    "confidence": "low",
+    "basis": "Robertson County TN. Owner not confirmed."
+  },
+  "Lytle Bend Meadow": {
+    "ownership": "public",
+    "confidence": "low",
+    "basis": "Davidson County TN. Owner not confirmed."
+  },
+  "Old Town Meadow": {
+    "ownership": "private",
+    "confidence": "low",
+    "basis": "Williamson County TN. Owner not confirmed."
+  },
+  "Bask": {
+    "ownership": "private",
+    "confidence": "low",
+    "basis": "Hickman County TN. Owner not confirmed."
+  },
+  "Arnold Prairie": {
+    "ownership": "private",
+    "confidence": "low",
+    "basis": "Mahaska County IA. Owner not confirmed."
+  },
+  "Frog Valley": {
+    "ownership": "private",
+    "confidence": "low",
+    "basis": "Saline County AR. Owner not confirmed."
+  }
+}

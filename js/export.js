@@ -146,11 +146,10 @@ async function drawExportFooter(ctx, vis, { x, y, width, height }) {
         logoY + logoHeight / 2,
     );
 
-    // Unfiltered totals. Acres/sites read from the raw feature array
-    // (matches main.js's on-screen footer, which includes the one
-    // record with no geometry); states resolution needs real
-    // coordinates, so that uses vis.features (geometry-filtered).
-    let allFeatures = vis.dataLayerArray[0].features;
+    // Unfiltered totals, over the sites the map can show. Records with
+    // no location are left out, exactly as the on-screen footer leaves
+    // them out, so an export and the page always agree.
+    let allFeatures = vis.features;
     let totalAcres = Math.round(
         allFeatures.reduce(
             (sum, f) =>

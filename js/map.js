@@ -1,10 +1,8 @@
 //* MAP.JS *//
 
-// Default map extent: continental US (excludes AK/HI)
-const CONUS_BOUNDS = [
-    [-125.0, 24.396308], // southwest
-    [-66.93457, 49.384358], // northeast
-];
+// Default map extent: continental US (excludes AK/HI). Set in
+// config.js, which is the one file a deployment has to change.
+const CONUS_BOUNDS = ANCHOR_CONFIG.bounds;
 
 // Pointy-top regular hexagon path, centered at the origin, given the
 // center-to-vertex radius (d3-shape has no built-in hexagon symbol type)
@@ -37,6 +35,14 @@ function buildInlineSvgStyles() {
     let value = (name) => root.getPropertyValue(name).trim();
 
     return `
+        .anchor__approx {
+            fill: ${value("--brand-navy")};
+            fill-opacity: 0.08;
+            stroke: ${value("--brand-navy")};
+            stroke-width: 1px;
+            stroke-opacity: 0.35;
+            stroke-dasharray: 3 3;
+        }
         .anchor__fill { fill: ${value("--brand-navy")}; }
         .anchor__stroke {
             fill: none;
@@ -74,48 +80,147 @@ const LANDCOVER_PREFIXES = [
     "CroplandwCP",
 ];
 
-// Ownership classification — the data has no clean "who owns this
-// site" field. AgencyOrPartner_FillingForm/ManagingPartner are free-text
-// org names, and ManagingPartner is often a conservation nonprofit
-// (e.g. Southeastern Grasslands Institute) assisting a private
-// landowner, not the actual owner. Classified by hand from those two
-// fields — a best guess pending client review (see plan doc for the
-// full table with confidence notes). Keyed by trimmed ANCHOR_SiteName.
-const SITE_OWNERSHIP = {
-    "MOTSU": "public",
-    "Bobwhite Quail Focus Area": "public",
-    "Melvern Lake": "public",
-    "Tipover and North Coves": "public",
-    "North Shore": "public",
-    "Melrose Air Force Range": "public",
-    "Rathbun Lake": "public",
-    "Stockton Lake (Masters and Hawker Point South)": "public",
-    "Wilson Lake Admin Grazing": "public",
-    "Kanopolis Lake": "public",
-    "Spring Creek Prairie": "non-profit",
-    "Dunbar Cave Prairie": "public",
-    "Guthrie Wet Prairie": "non-profit",
-    "Barnett Woods and Prairie State Natural Area": "non-profit",
-    "Cornelia Fort": "public",
-    "King Savanna": "private",
-    "Morgan Farm": "private",
-    "Best Hope Farm": "private",
-    "Kansas Hills": "private",
-    "Van Hook Savanna": "private",
-    "Lytle Bend Meadow": "public",
-    "Old Town Meadow": "private", // low confidence — ambiguous org name
-    "Bask": "private", // medium confidence — could be nonprofit
-    "Lambrecht": "private",
-    "Eagleville Wet Prairie": "non-profit",
-    "Penn Prairie": "non-profit", // medium confidence — private university
-    "Eyheralde Savanna": "private",
-    "Arnold Prairie": "private",
-    "Frog Valley": "private",
-};
+// The three ownership classes the dashboard knows. Any other value in
+// the data is a mistake and gets reported (see getOwnership).
+const OWNERSHIP_CLASSES = ["public", "private", "non-profit"];
 
+// Ownership comes from the data, not from this file. The prototype
+// classified sites here in JavaScript; that table now lives in
+// scripts/set-ownership.mjs, which writes ANCHOR_Ownership into the
+// GeoJSON. In production the ANCHOR intake form must collect the class
+// directly, and the script goes away.
+//
+// The map treats this field as authoritative. It does not guess. A
+// site with no class is drawn, but it is excluded from every ownership
+// filter and shows "Unknown" in its details.
 function getOwnership(feature) {
-    let name = (feature.properties.ANCHOR_SiteName || "").trim();
-    return SITE_OWNERSHIP[name] || null;
+    let value = feature.properties.ANCHOR_Ownership;
+    if (value == null) return null;
+
+    value = String(value).trim().toLowerCase();
+    if (OWNERSHIP_CLASSES.includes(value)) return value;
+
+    console.warn(
+        `Unknown ANCHOR_Ownership "${feature.properties.ANCHOR_Ownership}" ` +
+            `on site "${feature.properties.ANCHOR_SiteName}". ` +
+            `Expected one of: ${OWNERSHIP_CLASSES.join(", ")}.`,
+    );
+    return null;
+}
+
+//* LOCATION PRIVACY *//
+//
+// Public land is shown where it is. The public already knows where a
+// Corps of Engineers reservoir or an Army depot is, and an exact point
+// is what makes the map useful.
+//
+// Every other site is moved. Private landowners did not agree to have
+// their parcel published, and a non-profit preserve can hold the same
+// risk when the land is not open to visitors. So the rule is: show the
+// exact point only when the class is "public".
+//
+// A site with no class is also moved. An unknown owner is treated as
+// private until somebody confirms otherwise.
+function isLocationApproximate(feature) {
+    if (feature.properties.ANCHOR_LocationApproximate === true) return true;
+    return getOwnership(feature) !== "public";
+}
+
+// Where to draw the site.
+//
+// ANCHOR_LocationApproximate means the data arrived already offset —
+// see jitter.js and scripts/jitter-locations.mjs. In that case the
+// coordinates are used as they are. Offsetting them a second time
+// would move the site outside the circle the map draws around it, and
+// the circle is the promise that the true point is inside.
+//
+// statePolygons is optional. When it is given, the offset point must
+// fall in the same state as the true point. Several ANCHOR sites sit
+// within the offset radius of a state line — Guthrie Wet Prairie is
+// about 1 km south of the Kentucky line — and the dashboard counts and
+// outlines states, so a marker on the wrong side would contradict its
+// own footer. The map has no boundaries at first paint, so it draws
+// once without the test and again once they arrive.
+function displayCoordinates(feature, statePolygons) {
+    const coordinates = feature.geometry.coordinates;
+    if (feature.properties.ANCHOR_LocationApproximate === true) {
+        return coordinates;
+    }
+    if (!isLocationApproximate(feature)) return coordinates;
+
+    const name = feature.properties.ANCHOR_SiteName;
+    const trueState = statePolygons
+        ? statePolygons.find((state) => d3.geoContains(state, coordinates))
+        : null;
+
+    try {
+        return jitterCoordinates(coordinates, name, {
+            isAllowed: trueState
+                ? (candidate) => d3.geoContains(trueState, candidate)
+                : null,
+        });
+    } catch (err) {
+        // No position inside the state was found. Privacy comes first,
+        // so keep the offset and give up the state test.
+        console.warn(
+            `Could not keep "${name}" inside its state after the privacy ` +
+                `offset. Showing it offset anyway. ${err.message}`,
+        );
+        return jitterCoordinates(coordinates, name);
+    }
+}
+
+//* KEYBOARD ACCESS TO THE MARKERS *//
+
+// The markers are SVG groups. A browser gives no keyboard access to
+// those, so before this the whole map could be used with a mouse only.
+// A keyboard user could reach the filters, see the counts change, and
+// never open one site.
+//
+// Each marker becomes a button: it takes focus in reading order, it
+// says what it is, and Enter or Space does what a click does.
+//
+// A cluster reports how many sites it holds and that it opens them. A
+// single site reports its name, and says the position is approximate
+// when it is, because that fact is otherwise carried only by a circle.
+function anchorAccessibleName(d) {
+    if (d.properties.cluster) {
+        return `${d.properties.point_count} ANCHOR sites. ` +
+            `Activate to zoom in and separate them.`;
+    }
+    let name = d.properties.ANCHOR_SiteName;
+    let suffix = isLocationApproximate(d) ? ", approximate location" : "";
+    return `${name}${suffix}. Activate for details.`;
+}
+
+function makeAnchorOperable(selection, activate) {
+    selection
+        .attr("tabindex", 0)
+        .attr("role", "button")
+        .on("keydown", function (event, d) {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            // Space scrolls the page by default.
+            event.preventDefault();
+            activate(d);
+        });
+}
+
+// A parallel set of features that carry the shown position. The
+// properties object is shared with the true feature, not copied, so a
+// filter gives the same answer against either set.
+//
+// Everything the reader sees is built from these. Everything counted —
+// the acreage and site totals, and which states get an outline — is
+// built from the true features. The offset must not change a number.
+function toDisplayFeatures(features, statePolygons) {
+    return features.map((feature) => ({
+        type: "Feature",
+        properties: feature.properties,
+        geometry: {
+            type: "Point",
+            coordinates: displayCoordinates(feature, statePolygons),
+        },
+    }));
 }
 
 // A site "has" a land cover type if its EstAcres column is a positive
@@ -227,9 +332,19 @@ function describeSite(feature) {
         siteHasPractice(feature, code),
     );
 
+    // The survey's own total, not the sum of the land-cover columns
+    // above — the two often disagree (a site can report a total with no
+    // per-cover breakdown at all), and the total is what the footer
+    // stats and the map export are built from.
+    let acresTotal = properties.Calculation_ANCHOR_ACRES_TOTAL;
+
     return {
         name: properties.ANCHOR_SiteName,
         ownership: getOwnership(feature),
+        acresTotal: typeof acresTotal === "number" && acresTotal > 0
+            ? acresTotal
+            : null,
+        approximate: isLocationApproximate(feature),
         landCover,
         practices,
     };
@@ -262,15 +377,33 @@ function siteInfoHTML(feature) {
               .join("")}</ul>`
         : `<p class="site-popup__empty">No data recorded</p>`;
 
+    let acres = info.acresTotal !== null
+        ? `<p class="site-popup__field">
+            <span class="site-popup__acres">${Math.round(
+                info.acresTotal,
+            ).toLocaleString()}</span> acres
+        </p>`
+        : `<p class="site-popup__empty">No data recorded</p>`;
+
     return `
         <button type="button" class="site-popup__close" aria-label="Close">
             <i data-lucide="x"></i>
         </button>
         <h2 class="site-popup__title">${info.name}</h2>
+        ${
+        info.approximate
+            ? `<p class="site-popup__approx">
+                    Approximate location. Exact location not shown for
+                    privacy.
+                </p>`
+            : ""
+    }
         <p class="site-popup__label">Ownership</p>
         <p class="site-popup__field">
             ${OWNERSHIP_LABELS[info.ownership] || "Unknown"}
         </p>
+        <p class="site-popup__label">Total Acres</p>
+        ${acres}
         <p class="site-popup__label">Land Cover</p>
         ${chart}
         <p class="site-popup__label">Conservation Practices</p>
@@ -327,19 +460,26 @@ class MapVis {
     initVis() {
         let vis = this;
 
-        // Connect access token
-        // TODO: Swap FL or TLP token
-        mapboxgl.accessToken =
-            "pk.eyJ1IjoibXBraGluZGEiLCJhIjoiY21zMGdtZHF2MHZkYTJ4cTM5c2NubHFyZSJ9.gG5sUYWXM0l2xnKoVZZ8kA";
+        // Account credentials come from config.js — see the TODO there
+        // about moving to a Ferguson Lynch / Landscape Partnership
+        // account before launch.
+        mapboxgl.accessToken = ANCHOR_CONFIG.mapbox.accessToken;
 
-        // ANCHOR sites with a recorded location
+        // ANCHOR sites with a recorded location. These keep the true
+        // coordinates. Use them for every count and for the state
+        // outlines, never to draw a marker.
         vis.features = vis.dataLayerArray[0].features.filter(
             (d) => d.geometry,
         );
 
+        // The same sites at the position the reader sees. Private and
+        // non-profit sites are offset here; public sites are not.
+        vis.displayFeatures = toDisplayFeatures(vis.features);
+
         // No active filters yet: everything matches
         vis.matchingFeatures = vis.features;
-        vis.nonMatchingFeatures = [];
+        vis.displayMatching = vis.displayFeatures;
+        vis.displayNonMatching = [];
         vis.activeFilters = { owner: [], landcover: [], practices: [] };
 
         // Update which filters are active and re-render whenever a
@@ -358,8 +498,7 @@ class MapVis {
         // Create new mapbox map
         vis.map = new mapboxgl.Map({
             container: vis.mapParentElement, // container ID
-            // TODO: Swap FL or TLP style link
-            style: "mapbox://styles/mpkhinda/cmqfdz5sa000c01s73elr0usm", // ANCHOR custom basemap style
+            style: ANCHOR_CONFIG.mapbox.style, // ANCHOR custom basemap style
             bounds: CONUS_BOUNDS, // default to the continental US extent
             fitBoundsOptions: { padding: 40 },
             projection: "mercator",
@@ -424,8 +563,10 @@ class MapVis {
 
         // Build the spatial cluster index from the currently-matching
         // ANCHOR features (everything matches, until a filter is applied)
+        // Clusters are built from the shown positions, so a cluster
+        // sits where its markers are drawn.
         vis.clusterIndex = new Supercluster({ radius: 50, maxZoom: 16 }).load(
-            vis.matchingFeatures,
+            vis.displayMatching,
         );
 
         // Recompute clusters, and re-check the faded sites' zoom
@@ -446,11 +587,71 @@ class MapVis {
             .then(({ topo, statePolygons }) => {
                 vis.stateTopo = topo;
                 vis.statePolygons = statePolygons;
+
+                // Now that the boundaries are here, work out the shown
+                // positions again with the state test applied. The
+                // first pass had no boundaries to test against, so a
+                // site near a line could have landed on the wrong side.
+                vis.rebuildDisplayFeatures();
                 vis.updateStateLayer(vis.matchingFeatures);
             })
             .catch((err) => {
                 console.error("State boundary load/resolve failed:", err);
             });
+    }
+
+    // Draws or removes one reference layer from js/layers.js.
+    //
+    // The layer goes on top of the basemap. The ANCHOR markers are not
+    // in the basemap — they are an SVG element above the map canvas —
+    // so they stay visible whatever is turned on here.
+    //
+    // Mapbox rejects a layer added before the style has loaded, and the
+    // reader can reach the panel before that happens, so the work waits
+    // for the style when it has to.
+    setOverlayLayer(layerId, isOn) {
+        let vis = this;
+
+        if (!vis.map.isStyleLoaded()) {
+            vis.map.once("styledata", () => vis.setOverlayLayer(layerId, isOn));
+            return;
+        }
+
+        let layer = MAP_LAYERS.find((entry) => entry.id === layerId);
+        if (!layer || !layer.source) return;
+
+        let mapId = `overlay-${layerId}`;
+
+        if (!isOn) {
+            if (vis.map.getLayer(mapId)) vis.map.removeLayer(mapId);
+            if (vis.map.getSource(mapId)) vis.map.removeSource(mapId);
+            return;
+        }
+
+        if (vis.map.getLayer(mapId)) return;
+
+        vis.map.addSource(mapId, layer.source);
+        vis.map.addLayer({
+            id: mapId,
+            type: "raster",
+            source: mapId,
+            paint: {
+                "raster-opacity": layer.opacity == null ? 1 : layer.opacity,
+            },
+        });
+    }
+
+    // Works out every shown position again and redraws. Called once,
+    // when the state boundaries arrive, so that the privacy offset can
+    // be held inside each site's own state.
+    rebuildDisplayFeatures() {
+        let vis = this;
+
+        vis.displayFeatures = toDisplayFeatures(vis.features, vis.statePolygons);
+
+        // applyFilters rebuilds displayMatching, displayNonMatching and
+        // the cluster index from the new positions, then redraws.
+        vis.applyFilters();
     }
 
     // Recompute which states contain the given features, redraw the
@@ -503,19 +704,24 @@ class MapVis {
             vis.activeFilters.landcover.length > 0 ||
             vis.activeFilters.practices.length > 0;
 
+        let matches = (f) => siteMatchesFilters(f, vis.activeFilters);
+
+        // True positions, for the counts and the state outlines.
         vis.matchingFeatures = hasActiveFilters
-            ? vis.features.filter((f) =>
-                  siteMatchesFilters(f, vis.activeFilters),
-              )
+            ? vis.features.filter(matches)
             : vis.features;
-        vis.nonMatchingFeatures = hasActiveFilters
-            ? vis.features.filter(
-                  (f) => !siteMatchesFilters(f, vis.activeFilters),
-              )
+
+        // Shown positions, for the markers. The two sets stay in step
+        // because they share one properties object per site.
+        vis.displayMatching = hasActiveFilters
+            ? vis.displayFeatures.filter(matches)
+            : vis.displayFeatures;
+        vis.displayNonMatching = hasActiveFilters
+            ? vis.displayFeatures.filter((f) => !matches(f))
             : [];
 
         vis.clusterIndex = new Supercluster({ radius: 50, maxZoom: 16 }).load(
-            vis.matchingFeatures,
+            vis.displayMatching,
         );
 
         vis.renderClusters();
@@ -549,15 +755,17 @@ class MapVis {
         let vis = this;
 
         let savedMatching = vis.matchingFeatures;
-        let savedNonMatching = vis.nonMatchingFeatures;
+        let savedDisplayMatching = vis.displayMatching;
+        let savedDisplayNonMatching = vis.displayNonMatching;
         let savedClusterIndex = vis.clusterIndex;
 
         vis.matchingFeatures = vis.features;
-        vis.nonMatchingFeatures = [];
+        vis.displayMatching = vis.displayFeatures;
+        vis.displayNonMatching = [];
         vis.clusterIndex = new Supercluster({
             radius: 50,
             maxZoom: 16,
-        }).load(vis.features);
+        }).load(vis.displayFeatures);
         vis.renderClusters();
         vis.renderFadedSites();
 
@@ -578,7 +786,8 @@ class MapVis {
         let markup = new XMLSerializer().serializeToString(svgNode);
 
         vis.matchingFeatures = savedMatching;
-        vis.nonMatchingFeatures = savedNonMatching;
+        vis.displayMatching = savedDisplayMatching;
+        vis.displayNonMatching = savedDisplayNonMatching;
         vis.clusterIndex = savedClusterIndex;
         vis.renderClusters();
         vis.renderFadedSites();
@@ -644,11 +853,23 @@ class MapVis {
                             ? vis.zoomToCluster(d)
                             : vis.showSitePopup(d),
                     );
+                makeAnchorOperable(g, (d) =>
+                    d.properties.cluster
+                        ? vis.zoomToCluster(d)
+                        : vis.showSitePopup(d)
+                );
+                // First child, so the hexagon paints on top of it.
+                g.append("circle").attr("class", "anchor__approx");
                 g.append("path").attr("class", "anchor__stroke");
                 g.append("path").attr("class", "anchor__fill");
                 g.append("text").attr("class", "anchor__count");
                 return g;
             });
+
+        // The name has to be reset on every render, not only on enter:
+        // a group can change from a cluster of 4 to a cluster of 7, and
+        // its bound datum changes under the same DOM node.
+        vis.anchors.attr("aria-label", anchorAccessibleName);
 
         // Size each hexagon (fill + offset stroke ring) and label clusters
         vis.anchors.each(function (d) {
@@ -678,7 +899,7 @@ class MapVis {
         let showFaded =
             vis.matchingFeatures.length > 0 &&
             vis.map.getZoom() >= FADED_MIN_ZOOM;
-        let visibleFeatures = showFaded ? vis.nonMatchingFeatures : [];
+        let visibleFeatures = showFaded ? vis.displayNonMatching : [];
 
         vis.fadedAnchors = vis.anchorsGroup
             .selectAll(".anchor--faded")
@@ -692,6 +913,8 @@ class MapVis {
                         (d) => d.properties.ANCHOR_SiteName,
                     )
                     .on("click", (event, d) => vis.showSitePopup(d));
+                makeAnchorOperable(g, (d) => vis.showSitePopup(d));
+                g.append("circle").attr("class", "anchor__approx");
                 g.append("path")
                     .attr("class", "anchor__stroke")
                     .attr(
@@ -704,18 +927,31 @@ class MapVis {
                 return g;
             });
 
+        vis.fadedAnchors.attr("aria-label", anchorAccessibleName);
+
         vis.positionByCoordinates(vis.fadedAnchors);
     }
 
-    // Removes any currently-open site popup, if there is one
+    // Removes any currently-open site popup, if there is one.
+    //
+    // Focus goes back to the marker that opened the popup. Without
+    // that, closing with the keyboard drops focus onto the page body
+    // and the reader has to tab in from the top again.
     closeSitePopup() {
         let vis = this;
-        if (vis.activePopup) {
-            vis.activePopup.remove();
-            vis.activePopup = null;
-            vis.activePopupSite = null;
-            vis.updateSelectedHighlight();
-        }
+        if (!vis.activePopup) return;
+
+        let returnTo = vis.popupOpenedFrom;
+
+        vis.activePopup.remove();
+        vis.activePopup = null;
+        vis.activePopupSite = null;
+        vis.popupOpenedFrom = null;
+        vis.updateSelectedHighlight();
+
+        // The marker may have been redrawn or removed while the popup
+        // was open, so check it is still on the page.
+        if (returnTo && document.contains(returnTo)) returnTo.focus();
     }
 
     // Marks whichever site's popup is currently open with
@@ -785,7 +1021,17 @@ class MapVis {
     showSitePopup(feature) {
         let vis = this;
 
+        // Remember the marker that had focus, so the popup can hand
+        // focus back to it when it closes. Read it before
+        // closeSitePopup, which clears the record.
+        let openedFrom = document.activeElement &&
+                document.activeElement.classList &&
+                document.activeElement.classList.contains("anchor")
+            ? document.activeElement
+            : null;
+
         vis.closeSitePopup();
+        vis.popupOpenedFrom = openedFrom;
         vis.activePopupSite = feature.properties.ANCHOR_SiteName;
         vis.updateSelectedHighlight();
 
@@ -818,10 +1064,30 @@ class MapVis {
         // markup, so it isn't picked up by the one-time createIcons()
         // call in index.html) and wire it up
         lucide.createIcons();
-        vis.activePopup
-            .getElement()
+
+        let popupElement = vis.activePopup.getElement();
+        popupElement
             .querySelector(".site-popup__close")
             .addEventListener("click", () => vis.closeSitePopup());
+
+        // The details are a dialog raised by the marker, so name them
+        // with the site name and let Escape close them from anywhere
+        // inside.
+        let content = popupElement.querySelector(".mapboxgl-popup-content");
+        content.setAttribute("role", "dialog");
+        content.setAttribute(
+            "aria-label",
+            `${feature.properties.ANCHOR_SiteName} details`,
+        );
+        content.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") vis.closeSitePopup();
+        });
+
+        // Focus moves into the popup only when the marker was reached
+        // by keyboard. A mouse user who clicks a marker should not have
+        // focus jump, but a keyboard user needs to land on the content
+        // they just opened.
+        if (openedFrom) popupElement.querySelector(".site-popup__close").focus();
 
         let containerHeight = vis.map.getContainer().clientHeight;
         let isMobile = vis.map.getContainer().clientWidth < 1000;
@@ -886,11 +1152,55 @@ class MapVis {
         });
     }
 
+    // Screen pixels for a distance on the ground, at the current zoom
+    // and the given latitude. Standard Web Mercator: one pixel covers
+    // less ground as you zoom in, and less again as you move away from
+    // the equator.
+    groundMetresToPixels(metres, latitude) {
+        let vis = this;
+        let metresPerPixel = (156543.03392 *
+            Math.cos((latitude * Math.PI) / 180)) /
+            Math.pow(2, vis.map.getZoom());
+        return metres / metresPerPixel;
+    }
+
+    // Sizes the circle that says "the site is somewhere in here".
+    //
+    // The offset moves a site by up to JITTER_RADIUS_M, and the circle
+    // has that same radius around the shown point. The true point is
+    // therefore always inside the circle.
+    //
+    // Rules:
+    //   - Exact sites get no circle.
+    //   - Clusters get no circle. A cluster can hold both exact and
+    //     offset sites, so one circle around it would state something
+    //     the map cannot support.
+    //   - A circle smaller than the marker is dropped. At continental
+    //     zoom 750 m is well under one pixel, and a faint dot under
+    //     each hexagon reads as a rendering fault, not as a message.
+    sizeApproximateCircles(selection) {
+        let vis = this;
+        let minRadius = POINT_RADIUS + CLUSTER_STROKE_OFFSET;
+
+        selection.select(".anchor__approx").attr("r", function (d) {
+            if (d.properties.cluster || !isLocationApproximate(d)) return 0;
+            let radius = vis.groundMetresToPixels(
+                JITTER_RADIUS_M,
+                d.geometry.coordinates[1],
+            );
+            return radius < minRadius ? 0 : radius;
+        });
+    }
+
     moveVis() {
         let vis = this;
 
         vis.positionByCoordinates(vis.anchors);
-        if (vis.fadedAnchors) vis.positionByCoordinates(vis.fadedAnchors);
+        vis.sizeApproximateCircles(vis.anchors);
+        if (vis.fadedAnchors) {
+            vis.positionByCoordinates(vis.fadedAnchors);
+            vis.sizeApproximateCircles(vis.fadedAnchors);
+        }
 
         if (vis.stateFill) {
             vis.stateFill.attr("d", vis.path);
